@@ -16,7 +16,12 @@ impl Query {
 
     async fn servers<'cx>(&self,ctx: &Context<'cx>) -> Option<InstanceDesc> {
         let ctx = ctx.data_unchecked::<Service>();
-        unimplemented!()
+        Some(InstanceDesc {
+            name: "Dummy".into(),
+            state: ServerState::Stopped,
+            memory: 0.0,
+            max_memory: 6.0
+        })
     }
 }
 
