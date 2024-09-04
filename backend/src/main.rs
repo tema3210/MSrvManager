@@ -77,8 +77,6 @@ async fn main() -> std::io::Result<()> {
         .parse::<std::net::Ipv4Addr>()
         .expect("bad addr format");
 
-    log::info!("Connection pool built sucessfully");
-
     let native = native::Servers::init().start();
 
     let schema = Arc::new(graphql::schema(native));

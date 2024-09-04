@@ -12,6 +12,6 @@ pub struct Servers {
 
 impl Servers {
     pub fn init() -> Self {
-        unimplemented!()
+        Self { count: 0 }
     }
 }
