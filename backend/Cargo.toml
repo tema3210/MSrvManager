@@ -1,0 +1,27 @@
+[package]
+name = "graph_ql_test"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+uuid  = {version="*", features=["v4","std"]}
+askama = "0.12"
+
+actix-web-lab="*"
+
+actix-web="4.5.0"
+actix-cors="*"
+dotenv="0.15.0"
+anyhow="1"
+
+log="*"
+simple_logger = "5.0.0"
+askama_actix = "0.14.0"
+actix-files = "0.6.6"
+serde = "1.0.209"
+serde_json = "1.0.127"
+actix = "0.13.5"
+async-graphql = "7.0.9"
+async-graphql-actix-web = "7.0.9"

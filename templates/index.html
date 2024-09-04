@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}
+  Index
+{% endblock %}
+
+{% block content %}
+  <h1>Welcome!</h1>
+  <p>
+    <h3>What is your name?</h3>
+    <form action="/user">
+      <input type="text" name="name" /><br/>
+      <p><input type="submit"></p>
+    </form>
+  </p>
+{% endblock %}

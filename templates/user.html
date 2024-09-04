@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block title %}
+  User {{name}}
+{% endblock %}
+
+{% block content %}
+  <c-hello name="{{name}}" flag="true" age="22" array="[1,2,4]" ></c-hello>
+  <p>
+    {{ text }}
+  </p>
+{% endblock %}
