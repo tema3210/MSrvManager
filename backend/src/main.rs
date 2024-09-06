@@ -1,5 +1,5 @@
 #![recursion_limit = "1024"]
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 
 use actix::Actor;
 use actix_web::{get, route, web::{self, Data}, App, HttpServer, Responder};
@@ -10,6 +10,7 @@ use actix_web_lab::respond::Html;
 mod graphql;
 mod native;
 mod model;
+mod messages;
 
 #[derive(askama::Template)]
 #[template(path = "user.html")]
@@ -77,7 +78,12 @@ async fn main() -> std::io::Result<()> {
         .parse::<std::net::Ipv4Addr>()
         .expect("bad addr format");
 
-    let native = native::Servers::init().start();
+    let srvrs_dir = std::env::var("DATA_FOLDER")
+        .expect("no DATA_FOLDER specified")
+        .parse::<PathBuf>()
+        .expect("DATA_FOLDER is not path");
+
+    let native = native::Servers::init(srvrs_dir).start();
 
     let schema = Arc::new(graphql::schema(native));
 

@@ -7,15 +7,14 @@ LABEL version="1.0"
 LABEL description="Deployyy"
 
 ENV PORT=80 \
-    # DB_HOST=10.243.254.7 \
     ADDR=10.243.254.7 \
-    RUST_LOG=info
-# ENV DB_URL=postgresql://peers:based@${DB_HOST}:5432/graphql_test
+    RUST_LOG=info \
+    DATA_FOLDER=/minecraftServers
 EXPOSE 80
 
 RUN apk update && apk add libpq
 WORKDIR /app
 COPY .env .env
 COPY static static
-COPY graph_ql_test app
+COPY msrvmanager app
 CMD ["./app"]

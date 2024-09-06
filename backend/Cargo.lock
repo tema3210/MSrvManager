@@ -488,6 +488,7 @@ dependencies = [
  "handlebars",
  "http 1.1.0",
  "indexmap",
+ "log",
  "mime",
  "multer",
  "num-traits",
@@ -500,6 +501,7 @@ dependencies = [
  "static_assertions_next",
  "tempfile",
  "thiserror",
+ "url",
 ]
 
 [[package]]
@@ -1073,28 +1075,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4271d37baee1b8c7e4b708028c57d816cf9d2434acb33a549475f78c181f6253"
 
 [[package]]
-name = "graph_ql_test"
-version = "0.1.0"
-dependencies = [
- "actix",
- "actix-cors",
- "actix-files",
- "actix-web",
- "actix-web-lab",
- "anyhow",
- "askama",
- "askama_actix",
- "async-graphql",
- "async-graphql-actix-web",
- "dotenv",
- "log",
- "serde",
- "serde_json",
- "simple_logger",
- "uuid",
-]
-
-[[package]]
 name = "h2"
 version = "0.3.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1304,9 +1284,9 @@ dependencies = [
 
 [[package]]
 name = "log"
-version = "0.4.20"
+version = "0.4.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b5e6163cb8c49088c2c36f57875e58ccd8c87c7427f7fbd50ea6710b2f3f2e8f"
+checksum = "a7a70ba024b9dc04c27ea2f0c0548feb474ec5c54bba33a7f72f873a39d07b24"
 
 [[package]]
 name = "mediatype"
@@ -1361,6 +1341,29 @@ dependencies = [
  "log",
  "wasi",
  "windows-sys 0.48.0",
+]
+
+[[package]]
+name = "msrvmanager"
+version = "0.1.0"
+dependencies = [
+ "actix",
+ "actix-cors",
+ "actix-files",
+ "actix-web",
+ "actix-web-lab",
+ "anyhow",
+ "askama",
+ "askama_actix",
+ "async-graphql",
+ "async-graphql-actix-web",
+ "dotenv",
+ "log",
+ "serde",
+ "serde_json",
+ "simple_logger",
+ "url",
+ "uuid",
 ]
 
 [[package]]
@@ -2107,9 +2110,9 @@ dependencies = [
 
 [[package]]
 name = "url"
-version = "2.5.0"
+version = "2.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "31e6302e3bb753d46e83516cae55ae196fc0c309407cf11ab35cc51a4c2a4633"
+checksum = "22784dbdf76fdde8af1aeda5622b546b422b6fc585325248a2bf9f5e41e94d6c"
 dependencies = [
  "form_urlencoded",
  "idna",
