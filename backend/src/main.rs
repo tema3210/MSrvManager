@@ -1,5 +1,5 @@
 #![recursion_limit = "1024"]
-use std::{path::PathBuf, sync::Arc};
+use std::{ops::Range, path::PathBuf, sync::Arc};
 
 use actix::Actor;
 use actix_web::{get, route, web::{self, Data}, App, HttpServer, Responder};
@@ -7,10 +7,10 @@ use async_graphql_actix_web::{GraphQLRequest, GraphQLResponse};
 use actix_cors::Cors;
 use actix_web_lab::respond::Html;
 
-mod graphql;
-mod native;
-mod model;
-mod messages;
+pub mod graphql;
+pub mod native;
+pub mod model;
+pub mod messages;
 
 #[derive(askama::Template)]
 #[template(path = "user.html")]
@@ -83,7 +83,16 @@ async fn main() -> std::io::Result<()> {
         .parse::<PathBuf>()
         .expect("DATA_FOLDER is not path");
 
-    let native = native::Servers::init(srvrs_dir).start();
+    let rcons = match std::env::var("RCON_RANGE").expect("has to have rcon range").split('.').filter(|s| !s.is_empty()).collect::<Vec<_>>()[..] {
+        [l,r] => {
+            let l = l.parse().expect("bad rcon left bound");
+            let r = r.parse().expect("bad rcon right bound");
+            l..r
+        },
+        _ => panic!("bad RCON_RANGE format")
+    };
+
+    let native = native::Servers::init(srvrs_dir,rcons).start();
 
     let schema = Arc::new(graphql::schema(native));
 

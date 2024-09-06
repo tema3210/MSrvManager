@@ -9,6 +9,7 @@ LABEL description="Deployyy"
 ENV PORT=80 \
     ADDR=10.243.254.7 \
     RUST_LOG=info \
+    RCON_RANGE=26000..27000 \
     DATA_FOLDER=/minecraftServers
 EXPOSE 80
 
