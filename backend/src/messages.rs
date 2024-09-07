@@ -15,7 +15,8 @@ pub struct NewServer {
     pub setup_cmd: String,
     pub url: url::Url,
     pub max_memory: f64,
-    pub port: u16
+    pub port: u16,
+    pub rcon: u16
 }
 
 #[derive(Message)]

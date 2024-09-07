@@ -16,7 +16,8 @@ pub struct InstanceDesc {
     pub state: ServerState,
     pub memory: f64,
     pub max_memory: f64,
-    pub port: u16
+    pub port: u16,
+    pub rcon: u16
 }
 
 impl InstanceDesc {
@@ -24,7 +25,7 @@ impl InstanceDesc {
         todo!()
     }
 
-    pub fn start<P: AsRef<Path>>(&mut self, rcon: u16, root_dir: P)  {
+    pub fn start<P: AsRef<Path>>(&mut self, root_dir: P)  {
         todo!()
     }
 

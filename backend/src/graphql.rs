@@ -33,7 +33,7 @@ pub struct Mutation;
 #[Object]
 impl Mutation {
 
-    async fn new_server<'cx>(&self,ctx: &Context<'cx>,name: String, cmds: InstanceCommands,url: url::Url, max_memory: f64, port: u16) -> Result<bool,anyhow::Error> {
+    async fn new_server<'cx>(&self,ctx: &Context<'cx>,name: String, cmds: InstanceCommands,url: url::Url, max_memory: f64, port: u16, rcon: u16) -> Result<bool,anyhow::Error> {
         let service = ctx.data_unchecked::<native::Service>();
         
         Ok(service.send(messages::NewServer {
@@ -42,7 +42,8 @@ impl Mutation {
             setup_cmd: cmds.setup,
             url,
             max_memory,
-            port
+            port,
+            rcon
         }).await?)
     }
 

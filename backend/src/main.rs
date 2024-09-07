@@ -92,7 +92,7 @@ async fn main() -> std::io::Result<()> {
         _ => panic!("bad RCON_RANGE format")
     };
 
-    let native = native::Servers::init(srvrs_dir,rcons).start();
+    let native = native::Servers::init(srvrs_dir,rcons).expect("cannot init native service").start();
 
     let schema = Arc::new(graphql::schema(native));
 

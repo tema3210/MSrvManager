@@ -10,10 +10,11 @@ ENV PORT=80 \
     ADDR=10.243.254.7 \
     RUST_LOG=info \
     RCON_RANGE=26000..27000 \
-    DATA_FOLDER=/minecraftServers
-EXPOSE 80
+    DATA_FOLDER=/data
+EXPOSE ${PORT}
 
-RUN apk update && apk add libpq
+# RUN apk update && apk add libpq
+RUN mkdir ${DATA_FOLDER}
 WORKDIR /app
 COPY .env .env
 COPY static static
