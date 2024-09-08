@@ -30,11 +30,9 @@ pub struct DeleteServer {
 #[rtype(result = "bool")]
 pub struct AlterServer {
     pub name: String,
-    pub change: ServerChange
+    pub change: model::ServerChange
 }
 
-pub enum ServerChange {
-    NewName(String),
-    MaxMemory(f64),
-    Run(model::ServerState)
-}
+#[derive(Message)]
+#[rtype(result = "()")]
+pub struct Tick;

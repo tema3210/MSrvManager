@@ -1,7 +1,7 @@
 #![recursion_limit = "1024"]
-use std::{ops::Range, path::PathBuf, sync::Arc};
+use std::{path::PathBuf, sync::Arc, time::Duration};
 
-use actix::Actor;
+use actix::{spawn, Actor};
 use actix_web::{get, route, web::{self, Data}, App, HttpServer, Responder};
 use async_graphql_actix_web::{GraphQLRequest, GraphQLResponse};
 use actix_cors::Cors;
@@ -11,6 +11,7 @@ pub mod graphql;
 pub mod native;
 pub mod model;
 pub mod messages;
+pub mod utils;
 
 #[derive(askama::Template)]
 #[template(path = "user.html")]
@@ -93,6 +94,18 @@ async fn main() -> std::io::Result<()> {
     };
 
     let native = native::Servers::init(srvrs_dir,rcons).expect("cannot init native service").start();
+
+    spawn({
+        let native = native.clone();
+        async move {
+            loop {
+                if let Err(_) = native.send(messages::Tick).await {
+                    break
+                };
+                tokio::time::sleep(Duration::from_secs(3)).await
+            }
+        }
+    });
 
     let schema = Arc::new(graphql::schema(native));
 

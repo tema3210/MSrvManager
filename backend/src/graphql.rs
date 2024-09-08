@@ -50,17 +50,18 @@ impl Mutation {
     async fn alter_server<'cx>(
         &self,
         ctx: &Context<'cx>,
-        mut name: String,
-        new_name: Option<String>, 
-        max_memory: Option<f64>, 
-        run: Option<bool>
+        name: String,
+        max_memory: Option<f64>,
+        run: Option<bool>,
+        port: Option<u16>,
+        rcon: Option<u16>
     ) -> Result<String,anyhow::Error> {
         let service = ctx.data_unchecked::<native::Service>();
 
         if let Some(memory) = max_memory {
             service.send(messages::AlterServer {
                 name: name.clone(),
-                change: messages::ServerChange::MaxMemory(memory)
+                change: model::ServerChange::MaxMemory(memory)
             }).await?;
         }
         if let Some(should_run) = run {
@@ -71,16 +72,22 @@ impl Mutation {
             };
             service.send(messages::AlterServer {
                 name: name.clone(),
-                change: messages::ServerChange::Run(state)
+                change: model::ServerChange::Run(state)
             }).await?;
         }
 
-        if let Some(new_name) = new_name {
+        if let Some(port) = port {
             service.send(messages::AlterServer {
                 name: name.clone(),
-                change: messages::ServerChange::NewName(new_name.clone())
+                change: model::ServerChange::Port(port)
             }).await?;
-            name = new_name;
+        }
+
+        if let Some(rcon) = rcon {
+            service.send(messages::AlterServer {
+                name: name.clone(),
+                change: model::ServerChange::Rcon(rcon)
+            }).await?;
         }
 
         Ok(name)

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ops::Range, path::PathBuf};
+use std::{collections::HashMap, ops::Range, path::{Path, PathBuf}};
 
 use anyhow::anyhow;
 
@@ -31,11 +31,11 @@ pub struct Servers {
     servers_dir: PathBuf,
     rcon_range: Indices,
     port_range: Indices,
-    servers: HashMap<PathBuf,model::InstanceDesc>
+    servers: HashMap<std::sync::Arc<Path>,utils::Instance>
 }
 
 impl Servers {
-    pub fn path_to_name(&self, name: String) -> PathBuf {
+    pub fn name_to_path(&self, name: String) -> PathBuf {
         let mut res = self.servers_dir.clone();
         res.push(name);
         res
@@ -56,19 +56,22 @@ impl Servers {
                 Ok(e) => {
                     let e_path = e.path();
                     if e_path.is_dir() {
-                        if let Some(instance) = model::InstanceDesc::at(&e_path) {
+                        let arc_path: Arc<Path> = e_path.into();
+                        if let Some(instance) = utils::Instance::load(Arc::clone(&arc_path)) {
 
-                            if let Err(e) = port_range.try_take(instance.port) {
-                                log::error!("a servers {} port {}",&instance.name,e);
+                            let desc = &instance.desc;
+
+                            if let Err(e) = port_range.try_take(desc.port) {
+                                log::error!("a servers {} port {}",&desc.name,e);
                                 return None;
                             }
 
-                            if let Err(e) = rcon_range.try_take(instance.rcon) {
-                                log::error!("a servers {} rcon port {}",&instance.name,e);
+                            if let Err(e) = rcon_range.try_take(desc.rcon) {
+                                log::error!("a servers {} rcon port {}",&desc.name,e);
                                 return None;
                             }
 
-                            Some((e_path,instance))
+                            Some((arc_path.clone(),instance))
                         } else {
                             None
                         }
@@ -85,7 +88,8 @@ impl Servers {
 
     pub fn hb(&mut self) {
         for (p,i) in &mut self.servers {
-            log::info!("hb of {}",&i.name);
+            log::info!("hb of {} at {:?}",&i.desc.name,p);
+            i.hb();
         }
     }
 }
@@ -93,18 +97,15 @@ impl Servers {
 impl Actor for Servers {
     type Context = actix::Context<Self>;
 
-    fn started(&mut self, ctx: &mut Self::Context) {
-        // here we start watcher thread
-        let address = ctx.address();
-
-        for (_,i) in self.servers.iter_mut() {
-            i.start(&self.servers_dir);
-        }
+    fn started(&mut self, cx: &mut Self::Context) {
+        for (_,i) in &mut self.servers {
+            i.start();
+        };
     }
 
     fn stopping(&mut self, _: &mut Self::Context) -> Running {
         for (_,i) in &mut self.servers {
-            i.stop(&self.servers_dir)
+            i.stop()
         }
         Running::Stop
     }
@@ -117,14 +118,15 @@ impl Handler<messages::Instances> for Servers {
 
     fn handle(&mut self, _: messages::Instances, _: &mut Context<Self>) -> Self::Result {
         self.hb();
-        MessageResult(self.servers.values().cloned().collect())
+        MessageResult(self.servers.values().map(|i| &i.desc).cloned().collect())
     }
 }
 
 impl Handler<messages::NewServer> for Servers {
     type Result = MessageResult<messages::NewServer>;
 
-    fn handle(&mut self, msg: messages::NewServer, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: messages::NewServer, _: &mut Self::Context) -> Self::Result {
+        let path = self.name_to_path(msg.name);
         todo!()
     }
 }
@@ -132,15 +134,33 @@ impl Handler<messages::NewServer> for Servers {
 impl Handler<messages::AlterServer> for Servers {
     type Result = MessageResult<messages::AlterServer>;
 
-    fn handle(&mut self, msg: messages::AlterServer, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: messages::AlterServer, _: &mut Self::Context) -> Self::Result {
+        let path = self.name_to_path(msg.name);
         todo!()
+    }
+}
+
+impl Handler<messages::Tick> for Servers {
+    type Result = MessageResult<messages::Tick>;
+
+    fn handle(&mut self, _: messages::Tick, _: &mut Self::Context) -> Self::Result {
+        self.hb();
+        MessageResult(())
     }
 }
 
 impl Handler<messages::DeleteServer> for Servers {
     type Result = MessageResult<messages::DeleteServer>;
 
-    fn handle(&mut self, msg: messages::DeleteServer, ctx: &mut Self::Context) -> Self::Result {
-        todo!()
+    fn handle(&mut self, msg: messages::DeleteServer, _: &mut Self::Context) -> Self::Result {
+        let path = self.name_to_path(msg.name);
+
+        match self.servers.entry(path.into()) {
+            std::collections::hash_map::Entry::Occupied(e) => {
+                e.remove().kill();
+                MessageResult(true)
+            },
+            std::collections::hash_map::Entry::Vacant(_) => MessageResult(false),
+        }
     }
 }
