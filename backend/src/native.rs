@@ -23,6 +23,19 @@ impl Indices {
 
         Ok(())
     }
+
+    fn free(&mut self, idx: u16) -> anyhow::Result<()> {
+        if !self.0.contains(&idx) {
+            return Err(anyhow!("out of bounds"))
+        };
+
+        if self.1.contains(idx.into()) {
+            self.1.remove(idx.into());
+            return Ok(())
+        };
+
+        Err(anyhow!("already freed"))
+    }
 }
 
 const PORT_RANGE: Range<u16> = 25000..63000;
@@ -31,7 +44,7 @@ pub struct Servers {
     servers_dir: PathBuf,
     rcon_range: Indices,
     port_range: Indices,
-    servers: HashMap<std::sync::Arc<Path>,utils::Instance>
+    servers: HashMap<std::sync::Arc<Path>,instance::Instance>
 }
 
 impl Servers {
@@ -57,7 +70,7 @@ impl Servers {
                     let e_path = e.path();
                     if e_path.is_dir() {
                         let arc_path: Arc<Path> = e_path.into();
-                        if let Some(instance) = utils::Instance::load(Arc::clone(&arc_path)) {
+                        if let Some(instance) = instance::Instance::load(Arc::clone(&arc_path)) {
 
                             let desc = &instance.desc;
 
@@ -117,13 +130,12 @@ impl Handler<messages::Instances> for Servers {
     type Result = MessageResult<messages::Instances>;
 
     fn handle(&mut self, _: messages::Instances, _: &mut Context<Self>) -> Self::Result {
-        self.hb();
         MessageResult(self.servers.values().map(|i| &i.desc).cloned().collect())
     }
 }
 
 impl Handler<messages::NewServer> for Servers {
-    type Result = MessageResult<messages::NewServer>;
+    type Result = anyhow::Result<()>;
 
     fn handle(&mut self, msg: messages::NewServer, _: &mut Self::Context) -> Self::Result {
         let path = self.name_to_path(msg.name);
@@ -132,11 +144,48 @@ impl Handler<messages::NewServer> for Servers {
 }
 
 impl Handler<messages::AlterServer> for Servers {
-    type Result = MessageResult<messages::AlterServer>;
+    type Result = anyhow::Result<()>;
 
     fn handle(&mut self, msg: messages::AlterServer, _: &mut Self::Context) -> Self::Result {
         let path = self.name_to_path(msg.name);
-        todo!()
+
+        match self.servers.get_mut((&*path).into()) {
+            Some(instance) => {
+                match msg.change {
+                    model::ServerChange::MaxMemory(mm) => instance.desc.max_memory = mm,
+                    model::ServerChange::Port(port) => {
+                        match self.port_range.try_take(port) {
+                            Ok(_) => {
+                                self.port_range.free(instance.desc.port)?;
+                                instance.desc.port = port
+                            },
+                            Err(_) => return Err(anyhow!("cannot change port to blacklisted")),
+                        }
+                    },
+                    model::ServerChange::Rcon(port) => {
+                        match self.rcon_range.try_take(port) {
+                            Ok(_) => {
+                                self.rcon_range.free(instance.desc.port)?;
+                                instance.desc.port = port
+                            },
+                            Err(_) => return Err(anyhow!("cannot change port to blacklisted")),
+                        }
+                        instance.desc.rcon = port;
+                    },
+                    model::ServerChange::Run(should_run) => {
+                        if should_run {
+                            instance.start();
+                        } else {
+                            instance.stop();
+                        }
+                        return Ok(())
+                    },
+                };
+                instance.flush();
+                Ok(())
+            },
+            None => Err(anyhow!("cannot change port to blacklisted")),
+        }
     }
 }
 
@@ -158,9 +207,9 @@ impl Handler<messages::DeleteServer> for Servers {
         match self.servers.entry(path.into()) {
             std::collections::hash_map::Entry::Occupied(e) => {
                 e.remove().kill();
-                MessageResult(true)
+                MessageResult(Ok(()))
             },
-            std::collections::hash_map::Entry::Vacant(_) => MessageResult(false),
+            std::collections::hash_map::Entry::Vacant(_) => MessageResult(Err(anyhow!("trying to delete absent server"))),
         }
     }
 }

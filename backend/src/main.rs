@@ -11,7 +11,7 @@ pub mod graphql;
 pub mod native;
 pub mod model;
 pub mod messages;
-pub mod utils;
+pub mod instance;
 
 #[derive(askama::Template)]
 #[template(path = "user.html")]

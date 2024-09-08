@@ -8,7 +8,7 @@ use crate::*;
 pub struct Instances;
 
 #[derive(Message)]
-#[rtype(result = "bool")]
+#[rtype(result = "anyhow::Result<()>")]
 pub struct NewServer {
     pub name: String,
     pub up_cmd: String,
@@ -20,14 +20,14 @@ pub struct NewServer {
 }
 
 #[derive(Message)]
-#[rtype(result = "bool")]
+#[rtype(result = "anyhow::Result<()>")]
 pub struct DeleteServer {
     pub name: String
 }
 
 
 #[derive(Message)]
-#[rtype(result = "bool")]
+#[rtype(result = "anyhow::Result<()>")]
 pub struct AlterServer {
     pub name: String,
     pub change: model::ServerChange

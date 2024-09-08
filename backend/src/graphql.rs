@@ -36,7 +36,7 @@ impl Mutation {
     async fn new_server<'cx>(&self,ctx: &Context<'cx>,name: String, cmds: InstanceCommands,url: url::Url, max_memory: f64, port: u16, rcon: u16) -> Result<bool,anyhow::Error> {
         let service = ctx.data_unchecked::<native::Service>();
         
-        Ok(service.send(messages::NewServer {
+        service.send(messages::NewServer {
             name,
             up_cmd: cmds.up,
             setup_cmd: cmds.setup,
@@ -44,7 +44,10 @@ impl Mutation {
             max_memory,
             port,
             rcon
-        }).await?)
+        }).await?;
+
+        Ok(true)
+
     }
 
     async fn alter_server<'cx>(
@@ -65,14 +68,9 @@ impl Mutation {
             }).await?;
         }
         if let Some(should_run) = run {
-            let state = if should_run {
-                model::ServerState::Running
-            } else {
-                model::ServerState::Stopped
-            };
             service.send(messages::AlterServer {
                 name: name.clone(),
-                change: model::ServerChange::Run(state)
+                change: model::ServerChange::Run(should_run)
             }).await?;
         }
 
@@ -96,9 +94,10 @@ impl Mutation {
     async fn delete_server<'cx>(&self,ctx: &Context<'cx>,name: String) -> Result<bool,anyhow::Error> {
         let service = ctx.data_unchecked::<native::Service>();
 
-        Ok(service.send(messages::DeleteServer {
+        service.send(messages::DeleteServer {
             name
-        }).await?)
+        }).await?;
+        Ok(true)
     }
 }
 
