@@ -1,6 +1,7 @@
-use std::{collections::HashMap, fs, ops::Range, path::{Path, PathBuf}, process::Command};
+use std::{collections::HashMap, fs::{self, File}, io::Write, ops::Range, path::{Path, PathBuf}, process::Command};
 
 use anyhow::anyhow;
+use instance::Instance;
 
 use crate::*;
 
@@ -105,12 +106,7 @@ impl Servers {
         }
     }
 
-    /// should create dir and apropriate manifest files there
-    pub fn prepare<P: AsRef<Path>>(&self, at: P) -> anyhow::Result<()> {
-        std::fs::create_dir(&at)?;
-
-        todo!()
-    }
+    
 }
 
 impl Actor for Servers {
@@ -149,11 +145,28 @@ impl Handler<messages::Instances> for Servers {
     }
 }
 
+impl Handler<messages::LoadingEnded> for Servers {
+    type Result = ();
+    
+    fn handle(&mut self, msg: messages::LoadingEnded, _: &mut Self::Context) -> Self::Result {
+        if let Some(i) = self.servers.get_mut(&msg.0) {
+            if msg.1 {
+                i.is_downloading = false
+            } else {
+                // we should delete server and free its ports from alloc table
+                todo!()
+            }
+            
+        }
+    }
+}
+
 impl Handler<messages::NewServer> for Servers {
     type Result = anyhow::Result<()>;
 
     fn handle(&mut self, msg: messages::NewServer, ctx: &mut Self::Context) -> Self::Result {
         let path = self.name_to_path(&msg.name);
+        
 
         if path.exists() && self.servers.contains_key((&*path).into()) {
             return Err(anyhow!("server name is already in use"))
@@ -174,13 +187,6 @@ impl Handler<messages::NewServer> for Servers {
         };
 
         log::info!("create server at {:?}", &*path);
-        
-
-        //make an instance
-
-        let place: Arc<Path> = path.into();
-
-        self.prepare(&*place)?;
 
         let desc: model::InstanceDescriptor = model::InstanceDescriptor {
             name: msg.name.clone(),
@@ -192,27 +198,45 @@ impl Handler<messages::NewServer> for Servers {
             rcon: msg.rcon
         };
 
+        //make an instance
 
+        Instance::prepare(&path)?;
+
+        let instance_place: Arc<Path> = path.into();
+
+        let mut cmd_file = File::options().write(true).open(&*instance_place.join(instance::COMMAND_FILE_NAME))?;
+        
+        cmd_file.write(msg.up_cmd.as_bytes())?;
+        
+        drop(cmd_file);
+
+        let instance = Instance::create(Arc::clone(&instance_place), desc)?;
+        
+        self.servers.insert(Arc::clone(&instance_place), instance);
         
         
-        
-        
-        
-        // make loader
-        let addr = ctx.address();
+        // finish loader
+        //todo: handle rest of errors
+        std::thread::spawn({
+            let addr = ctx.address();
+            let instance_place = instance_place;
+            let url = msg.url.clone();
+            let tmp_file = format!("/tmp/{}",&msg.name);
+            move || {
+                let Ok(mut response) = reqwest::blocking::get(url) else {
+                    addr.do_send(messages::LoadingEnded(instance_place,false));
+                    return
+                };
 
-        let tmp_file = format!("/tmp/{}",&msg.name);
+                let mut file = fs::File::create(&tmp_file).unwrap();
 
-        
+                std::io::copy(&mut response, &mut file);
 
-        let mut response = reqwest::blocking::get(msg.url)?;
+                fs::remove_file(&tmp_file);
 
-        let mut file = fs::File::create(&tmp_file)?;
-
-        std::io::copy(&mut response, &mut file)?;
-
-        fs::remove_file(&tmp_file)?;
-
+                addr.do_send(messages::LoadingEnded(instance_place,true));
+            }
+        });
 
         Err(anyhow!("unimplemented"))
     }

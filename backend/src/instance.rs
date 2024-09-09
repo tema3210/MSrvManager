@@ -1,4 +1,4 @@
-use std::{io::{Read, Write}, path::Path};
+use std::{fs::File, io::{Read, Write}, path::Path};
 
 use crate::*;
 
@@ -22,7 +22,60 @@ pub struct Instance {
     process: Option<std::process::Child>
 }
 
+pub const MANIFEST_NAME: &str = "msrvDesc.json";
+
+pub const COMMAND_FILE_NAME: &str = "run.command";
+
 impl Instance {
+    /// should create dir and apropriate manifest files there
+    pub fn prepare<P: AsRef<Path>>(at: P) -> anyhow::Result<()> {
+        std::fs::create_dir(&at)?;
+
+        std::fs::File::create_new(at.as_ref().join(instance::MANIFEST_NAME))?;
+        std::fs::File::create_new(at.as_ref().join(instance::COMMAND_FILE_NAME))?;
+
+        Ok(())
+    }
+
+    fn open_manifest(at: &Path) -> Result<File, std::io::Error> {
+        File::options()
+            .write(true)    
+            .read(true)
+            .open(at.join(MANIFEST_NAME))
+    }
+
+    fn read_run_command(at: &Path) -> anyhow::Result<Command> {
+        let mut cmd_file = File::open(at.join(COMMAND_FILE_NAME))?;
+        let mut run_command = String::new();
+
+        cmd_file.read_to_string(&mut run_command)?;
+
+        let mut run_command = Command::new(run_command);
+        run_command.current_dir(at);
+
+        Ok(run_command)
+    }
+
+    pub fn create(place: Arc<Path>, desc: model::InstanceDescriptor) -> anyhow::Result<Self> {
+        if !place.is_dir() {
+            return Err(anyhow!("create should be called on dir"));
+        }
+
+        let mut manifest = Self::open_manifest(&*place)?;
+
+        desc.to_file(&mut manifest)?;
+
+        let run_command = Self::read_run_command(&*place)?;
+
+        Ok(Instance {
+            desc,
+            is_downloading: true,
+            process: None,
+            place,
+            manifest,
+            run_command
+        })
+    }
 
     pub fn load(place: Arc<Path>) -> anyhow::Result<Self> {
 
@@ -30,13 +83,10 @@ impl Instance {
             return Err(anyhow!("load should be called on dir"));
         }
 
-        let mut manifest = std::fs::OpenOptions::new()
-            .write(true)
-            .read(true)
-            .open((&*place).join("msrvDesc.json"))?;
+        let mut manifest = Self::open_manifest(&*place)?;
         let desc: model::InstanceDescriptor = model::InstanceDescriptor::from_file(&mut manifest)?;
 
-        let mut command_file = std::fs::File::open((&*place).join("run.command"))?;
+        let mut command_file = std::fs::File::open((&*place).join(COMMAND_FILE_NAME))?;
 
         let mut run_command = String::new();
 

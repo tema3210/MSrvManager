@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use actix::Message;
 
 use crate::*;
@@ -36,3 +38,7 @@ pub struct AlterServer {
 #[derive(Message)]
 #[rtype(result = "()")]
 pub struct Tick;
+
+#[derive(Message)]
+#[rtype(result = "()")]
+pub struct LoadingEnded(pub Arc<Path>,pub bool);
