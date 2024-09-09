@@ -60,7 +60,7 @@ impl Instance {
                     // memory in KB
                     if let Some(memory) = status.vmrss {
                         let memory = (memory / (1024 * 1024)) as f64;
-                        self.desc.memory = memory
+                        self.desc.memory = Some(memory)
                     }
                 } else {
                     if self.desc.state == model::ServerState::Running {
@@ -79,9 +79,10 @@ impl Instance {
             None => {
                 if let Ok(ch) = self.run_command.spawn() {
                     self.process = Some(ch)
-                }
+                };
+                self.hb()
             }
-        }
+        };
     }
 
     pub fn stop(&mut self) {
@@ -89,8 +90,8 @@ impl Instance {
             Some(ch) => {
                 if let Some(pipe) =  &mut ch.stdin {
                     let res = pipe.write(b"stop\n");
-                    if res.is_err() {
-                        todo!()
+                    if res.is_err() || matches!(res,Ok(0)) {
+                        // we should wait here for like 5 secs
                     }
                 };
             },
@@ -102,8 +103,9 @@ impl Instance {
     pub fn kill(&mut self) {
         match &mut self.process {
             Some(ch) => {
-                let _ = ch.kill();
+                ch.kill();
                 self.desc.state = model::ServerState::Stopped;
+                self.desc.memory = None
             },
             None => {}
         }

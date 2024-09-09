@@ -100,8 +100,7 @@ impl Servers {
     }
 
     pub fn hb(&mut self) {
-        for (p,i) in &mut self.servers {
-            log::info!("hb of {} at {:?}",&i.desc.name,p);
+        for (_,i) in &mut self.servers {
             i.hb();
         }
     }
