@@ -110,7 +110,7 @@ impl Servers {
 impl Actor for Servers {
     type Context = actix::Context<Self>;
 
-    fn started(&mut self, cx: &mut Self::Context) {
+    fn started(&mut self, _: &mut Self::Context) {
         for (_,i) in &mut self.servers {
             i.start();
         };
@@ -118,7 +118,7 @@ impl Actor for Servers {
 
     fn stopping(&mut self, _: &mut Self::Context) -> Running {
         for (_,i) in &mut self.servers {
-            i.stop()
+            i.stop();
         }
         Running::Stop
     }

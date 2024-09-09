@@ -1,4 +1,4 @@
-use std::{io::Read, path::Path};
+use std::{io::{Read, Write}, path::Path};
 
 use crate::*;
 
@@ -51,7 +51,26 @@ impl Instance {
     }
 
     pub fn hb(&mut self) {
-        todo!()
+        match &mut self.process {
+            Some(ch) => {
+                if let Ok(process) = procfs::process::Process::new(ch.id().try_into().unwrap()) {
+                    let Ok(status) = process.status() else {
+                        return;
+                    };
+                    // memory in KB
+                    if let Some(memory) = status.vmrss {
+                        let memory = (memory / (1024 * 1024)) as f64;
+                        self.desc.memory = memory
+                    }
+                } else {
+                    if self.desc.state == model::ServerState::Running {
+                        self.desc.state = model::ServerState::Crashed
+                    }
+                }
+            }, 
+            None => {}
+        }
+        self.flush()
     }
 
     pub fn start(&mut self) {
@@ -66,13 +85,25 @@ impl Instance {
     }
 
     pub fn stop(&mut self) {
-        todo!()
+        match &mut self.process {
+            Some(ch) => {
+                if let Some(pipe) =  &mut ch.stdin {
+                    let res = pipe.write(b"stop\n");
+                    if res.is_err() {
+                        todo!()
+                    }
+                };
+            },
+            None => {}
+        };
+        self.desc.state = model::ServerState::Stopped;
     }
 
     pub fn kill(&mut self) {
         match &mut self.process {
             Some(ch) => {
                 let _ = ch.kill();
+                self.desc.state = model::ServerState::Stopped;
             },
             None => {}
         }

@@ -16,7 +16,9 @@ pub struct InstanceDescriptor {
     pub name: String,
     pub mods: url::Url,
     pub state: ServerState,
+    // in GB
     pub memory: f64,
+    // in GB
     pub max_memory: f64,
     pub port: u16,
     pub rcon: u16,
