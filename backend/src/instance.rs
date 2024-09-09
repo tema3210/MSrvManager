@@ -12,8 +12,10 @@ use std::process::Command;
 /// and `run.command` file
 pub struct Instance {
     pub desc: model::InstanceDescriptor,
+    pub is_downloading: bool,
     /// should point at directory where Instance is located
     pub place: Arc<Path>,
+
     manifest: std::fs::File,
     run_command: std::process::Command,
 
@@ -32,7 +34,7 @@ impl Instance {
             .write(true)
             .read(true)
             .open((&*place).join("msrvDesc.json"))?;
-        let desc = serde_json::from_reader(&mut manifest)?;
+        let desc: model::InstanceDescriptor = model::InstanceDescriptor::from_file(&mut manifest)?;
 
         let mut command_file = std::fs::File::open((&*place).join("run.command"))?;
 
@@ -43,7 +45,7 @@ impl Instance {
         let mut run_command = Command::new(run_command);
         run_command.current_dir(&*place);
 
-        Ok(Self {desc, place, manifest, run_command, process: None})
+        Ok(Self {desc, place, manifest, run_command, process: None, is_downloading: false})
     }
 
     pub fn flush(&mut self) {
@@ -51,6 +53,9 @@ impl Instance {
     }
 
     pub fn hb(&mut self) {
+        if self.is_downloading {
+            return
+        }
         match &mut self.process {
             Some(ch) => {
                 if let Ok(process) = procfs::process::Process::new(ch.id().try_into().unwrap()) {
@@ -74,6 +79,9 @@ impl Instance {
     }
 
     pub fn start(&mut self) {
+        if self.is_downloading {
+            return
+        }
         match self.process {
             Some(_) => return,
             None => {
@@ -86,6 +94,9 @@ impl Instance {
     }
 
     pub fn stop(&mut self) {
+        if self.is_downloading {
+            return
+        }
         match &mut self.process {
             Some(ch) => {
                 if let Some(pipe) =  &mut ch.stdin {

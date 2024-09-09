@@ -23,7 +23,7 @@ impl Query {
 pub struct InstanceCommands {
     /// Must not spawn detached processes
     pub up: String,
-    pub setup: String
+    pub setup: Option<String>
 }
 
 pub struct Mutation;
@@ -32,7 +32,7 @@ pub struct Mutation;
 impl Mutation {
 
     async fn new_server<'cx>(&self,ctx: &Context<'cx>,name: String, cmds: InstanceCommands,url: url::Url, max_memory: f64, port: u16, rcon: u16) -> Result<bool,anyhow::Error> {
-        let service = ctx.data_unchecked::<native::Service>();
+        let service = ctx.data_unchecked::<native::Service>().clone();
         
         service.send(messages::NewServer {
             name,

@@ -12,7 +12,7 @@ pub struct Instances;
 pub struct NewServer {
     pub name: String,
     pub up_cmd: String,
-    pub setup_cmd: String,
+    pub setup_cmd: Option<String>,
     pub url: url::Url,
     pub max_memory: f64,
     pub port: u16,

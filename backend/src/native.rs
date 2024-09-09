@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ops::Range, path::{Path, PathBuf}};
+use std::{collections::HashMap, fs, ops::Range, path::{Path, PathBuf}, process::Command};
 
 use anyhow::anyhow;
 
@@ -48,9 +48,9 @@ pub struct Servers {
 }
 
 impl Servers {
-    pub fn name_to_path(&self, name: String) -> PathBuf {
+    pub fn name_to_path<P: AsRef<Path>>(&self, name: P) -> PathBuf {
         let mut res = self.servers_dir.clone();
-        res.push(name);
+        res.push(name.as_ref());
         res
     }
 
@@ -104,6 +104,13 @@ impl Servers {
             i.hb();
         }
     }
+
+    /// should create dir and apropriate manifest files there
+    pub fn prepare<P: AsRef<Path>>(&self, at: P) -> anyhow::Result<()> {
+        std::fs::create_dir(&at)?;
+
+        todo!()
+    }
 }
 
 impl Actor for Servers {
@@ -129,16 +136,85 @@ impl Handler<messages::Instances> for Servers {
     type Result = MessageResult<messages::Instances>;
 
     fn handle(&mut self, _: messages::Instances, _: &mut Context<Self>) -> Self::Result {
-        MessageResult(self.servers.values().map(|i| &i.desc).cloned().collect())
+        MessageResult(self.servers.values()
+            .filter_map(|i| {
+                if !i.is_downloading {
+                    Some(&i.desc)
+                } else {
+                    None
+                }
+            })
+            .cloned().collect()
+        )
     }
 }
 
 impl Handler<messages::NewServer> for Servers {
     type Result = anyhow::Result<()>;
 
-    fn handle(&mut self, msg: messages::NewServer, _: &mut Self::Context) -> Self::Result {
-        let path = self.name_to_path(msg.name);
-        todo!()
+    fn handle(&mut self, msg: messages::NewServer, ctx: &mut Self::Context) -> Self::Result {
+        let path = self.name_to_path(&msg.name);
+
+        if path.exists() && self.servers.contains_key((&*path).into()) {
+            return Err(anyhow!("server name is already in use"))
+        }
+
+        match (self.rcon_range.try_take(msg.rcon),self.port_range.try_take(msg.port)) {
+            //rcon   port
+            (Ok(()), Ok(())) => {},
+            (Ok(()), Err(e)) => {
+                self.rcon_range.free(msg.rcon).unwrap(); // free rcon back
+                return Err(e)
+            },
+            (Err(e), Ok(())) => {
+                self.port_range.free(msg.port).unwrap(); // free port back
+                return Err(e)
+            },
+            (Err(_), Err(_)) => return Err(anyhow!("both rcon and port are bad")),
+        };
+
+        log::info!("create server at {:?}", &*path);
+        
+
+        //make an instance
+
+        let place: Arc<Path> = path.into();
+
+        self.prepare(&*place)?;
+
+        let desc: model::InstanceDescriptor = model::InstanceDescriptor {
+            name: msg.name.clone(),
+            mods: msg.url.clone(),
+            state: model::ServerState::Stopped,
+            max_memory: msg.max_memory,
+            memory: None,
+            port: msg.port,
+            rcon: msg.rcon
+        };
+
+
+        
+        
+        
+        
+        
+        // make loader
+        let addr = ctx.address();
+
+        let tmp_file = format!("/tmp/{}",&msg.name);
+
+        
+
+        let mut response = reqwest::blocking::get(msg.url)?;
+
+        let mut file = fs::File::create(&tmp_file)?;
+
+        std::io::copy(&mut response, &mut file)?;
+
+        fs::remove_file(&tmp_file)?;
+
+
+        Err(anyhow!("unimplemented"))
     }
 }
 

@@ -1,3 +1,5 @@
+use std::fs::File;
+
 use serde::{Deserialize,Serialize};
 
 use async_graphql::{Enum, SimpleObject};
@@ -20,6 +22,16 @@ pub struct InstanceDescriptor {
     pub max_memory: f64,
     pub port: u16,
     pub rcon: u16,
+}
+
+impl InstanceDescriptor {
+    pub fn to_file(&self,file: &mut File) -> anyhow::Result<()> {
+        Ok(serde_json::to_writer(file, self)?)
+    }
+
+    pub fn from_file(file: &mut File) -> anyhow::Result<Self> {
+        Ok(serde_json::from_reader(file)?)
+    }
 }
 
 pub enum ServerChange {

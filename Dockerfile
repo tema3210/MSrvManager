@@ -13,7 +13,7 @@ ENV PORT=80 \
     DATA_FOLDER=/data
 EXPOSE ${PORT}
 
-# RUN apk update && apk add libpq
+# RUN apk update && apk add curl
 RUN mkdir ${DATA_FOLDER}
 WORKDIR /app
 COPY .env .env

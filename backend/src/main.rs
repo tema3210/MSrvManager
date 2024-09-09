@@ -82,7 +82,7 @@ async fn main() -> std::io::Result<()> {
     let srvrs_dir = std::env::var("DATA_FOLDER")
         .expect("no DATA_FOLDER specified")
         .parse::<PathBuf>()
-        .expect("DATA_FOLDER is not path");
+        .expect("DATA_FOLDER is not a path");
 
     let rcons = match std::env::var("RCON_RANGE").expect("has to have rcon range").split('.').filter(|s| !s.is_empty()).collect::<Vec<_>>()[..] {
         [l,r] => {
