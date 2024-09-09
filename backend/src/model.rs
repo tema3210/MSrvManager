@@ -12,7 +12,7 @@ pub enum ServerState {
 }
 
 #[derive(SimpleObject,Clone, Deserialize, Serialize)]
-pub struct InstanceDesc {
+pub struct InstanceDescriptor {
     pub name: String,
     pub mods: url::Url,
     pub state: ServerState,

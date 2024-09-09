@@ -1,5 +1,3 @@
-use anyhow::anyhow;
-
 use async_graphql::{EmptySubscription, InputObject, Schema };
 
 use async_graphql::{Context, Object};
@@ -14,7 +12,7 @@ impl Query {
         "0.1"
     }
 
-    async fn servers<'cx>(&self,ctx: &Context<'cx>) -> Result<Vec<model::InstanceDesc>,anyhow::Error> {
+    async fn servers<'cx>(&self,ctx: &Context<'cx>) -> Result<Vec<model::InstanceDescriptor>,anyhow::Error> {
         let service = ctx.data_unchecked::<native::Service>();
 
         Ok(service.send(messages::Instances).await?)
@@ -44,7 +42,7 @@ impl Mutation {
             max_memory,
             port,
             rcon
-        }).await?;
+        }).await??;
 
         Ok(true)
 
@@ -65,27 +63,27 @@ impl Mutation {
             service.send(messages::AlterServer {
                 name: name.clone(),
                 change: model::ServerChange::MaxMemory(memory)
-            }).await?;
+            }).await??;
         }
         if let Some(should_run) = run {
             service.send(messages::AlterServer {
                 name: name.clone(),
                 change: model::ServerChange::Run(should_run)
-            }).await?;
+            }).await??;
         }
 
         if let Some(port) = port {
             service.send(messages::AlterServer {
                 name: name.clone(),
                 change: model::ServerChange::Port(port)
-            }).await?;
+            }).await??;
         }
 
         if let Some(rcon) = rcon {
             service.send(messages::AlterServer {
                 name: name.clone(),
                 change: model::ServerChange::Rcon(rcon)
-            }).await?;
+            }).await??;
         }
 
         Ok(name)
@@ -96,7 +94,7 @@ impl Mutation {
 
         service.send(messages::DeleteServer {
             name
-        }).await?;
+        }).await??;
         Ok(true)
     }
 }

@@ -70,7 +70,7 @@ impl Servers {
                     let e_path = e.path();
                     if e_path.is_dir() {
                         let arc_path: Arc<Path> = e_path.into();
-                        if let Some(instance) = instance::Instance::load(Arc::clone(&arc_path)) {
+                        if let Ok(instance) = instance::Instance::load(Arc::clone(&arc_path)) {
 
                             let desc = &instance.desc;
 
@@ -199,17 +199,19 @@ impl Handler<messages::Tick> for Servers {
 }
 
 impl Handler<messages::DeleteServer> for Servers {
-    type Result = MessageResult<messages::DeleteServer>;
+    type Result = anyhow::Result<()>;
 
     fn handle(&mut self, msg: messages::DeleteServer, _: &mut Self::Context) -> Self::Result {
         let path = self.name_to_path(msg.name);
 
         match self.servers.entry(path.into()) {
             std::collections::hash_map::Entry::Occupied(e) => {
-                e.remove().kill();
-                MessageResult(Ok(()))
+                let mut instance = e.remove();
+                instance.kill();
+                std::fs::remove_dir_all(instance.place)?;
+                Ok(())
             },
-            std::collections::hash_map::Entry::Vacant(_) => MessageResult(Err(anyhow!("trying to delete absent server"))),
+            std::collections::hash_map::Entry::Vacant(_) => Err(anyhow!("trying to delete absent server")),
         }
     }
 }

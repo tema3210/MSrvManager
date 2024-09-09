@@ -4,7 +4,7 @@ use crate::*;
 
 /// Define message
 #[derive(Message)]
-#[rtype(result = "Vec<model::InstanceDesc>")]
+#[rtype(result = "Vec<model::InstanceDescriptor>")]
 pub struct Instances;
 
 #[derive(Message)]

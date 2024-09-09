@@ -1,31 +1,49 @@
-use std::path::Path;
+use std::{io::Read, path::Path};
 
 use crate::*;
 
 use anyhow::anyhow;
+use std::process::Command;
 
 
+/// The descriptor of a server
+/// at the dir pointed by `place`
+/// there should be `msrvDesc.json` file
+/// and `run.command` file
 pub struct Instance {
-    pub desc: model::InstanceDesc,
+    pub desc: model::InstanceDescriptor,
+    /// should point at directory where Instance is located
     pub place: Arc<Path>,
     manifest: std::fs::File,
+    run_command: std::process::Command,
 
     process: Option<std::process::Child>
 }
 
 impl Instance {
 
-    pub fn load(place: Arc<Path>) -> Option<Self> {
+    pub fn load(place: Arc<Path>) -> anyhow::Result<Self> {
 
-        let manifest = (&*place).join("msrvInfo.json");
+        if !place.is_dir() {
+            return Err(anyhow!("load should be called on dir"));
+        }
 
-        let mut file = std::fs::OpenOptions::new()
+        let mut manifest = std::fs::OpenOptions::new()
             .write(true)
             .read(true)
-            .open(manifest).ok()?;
-        let desc = serde_json::from_reader(&mut file).ok()?;
+            .open((&*place).join("msrvDesc.json"))?;
+        let desc = serde_json::from_reader(&mut manifest)?;
 
-        Some(Self {desc, place, manifest: file, process: None})
+        let mut command_file = std::fs::File::open((&*place).join("run.command"))?;
+
+        let mut run_command = String::new();
+
+        command_file.read_to_string(&mut run_command)?;
+
+        let mut run_command = Command::new(run_command);
+        run_command.current_dir(&*place);
+
+        Ok(Self {desc, place, manifest, run_command, process: None})
     }
 
     pub fn flush(&mut self) {
@@ -37,7 +55,14 @@ impl Instance {
     }
 
     pub fn start(&mut self) {
-        todo!()
+        match self.process {
+            Some(_) => return,
+            None => {
+                if let Ok(ch) = self.run_command.spawn() {
+                    self.process = Some(ch)
+                }
+            }
+        }
     }
 
     pub fn stop(&mut self) {
@@ -45,6 +70,11 @@ impl Instance {
     }
 
     pub fn kill(&mut self) {
-        todo!()
+        match &mut self.process {
+            Some(ch) => {
+                let _ = ch.kill();
+            },
+            None => {}
+        }
     }
 }
