@@ -1,4 +1,5 @@
-use std::{collections::HashMap, fs::{self, File}, io::Write, ops::Range, path::{Path, PathBuf}, process::Command};
+use std::{collections::HashMap, fs::File, io::{copy,Write,Cursor}, ops::Range, path::{Path, PathBuf}};
+use zip::ZipArchive;
 
 use anyhow::anyhow;
 use instance::Instance;
@@ -106,6 +107,12 @@ impl Servers {
         }
     }
 
+    pub fn nuke(&mut self,instance: &instance::Instance) -> anyhow::Result<()> {
+        self.port_range.1.remove(instance.desc.port.into());
+        self.rcon_range.1.remove(instance.desc.rcon.into());
+        std::fs::remove_dir_all(instance.place.as_ref())?;
+        Ok(())
+    }
     
 }
 
@@ -149,14 +156,24 @@ impl Handler<messages::LoadingEnded> for Servers {
     type Result = ();
     
     fn handle(&mut self, msg: messages::LoadingEnded, _: &mut Self::Context) -> Self::Result {
-        if let Some(i) = self.servers.get_mut(&msg.0) {
-            if msg.1 {
-                i.is_downloading = false
-            } else {
-                // we should delete server and free its ports from alloc table
-                todo!()
-            }
-            
+        match self.servers.entry(msg.0) {
+            std::collections::hash_map::Entry::Occupied(mut e) => {
+                if let Some(error) = msg.1 {
+                    let instance = e.remove();
+                    let name = &instance.desc.name;
+                    log::error!("couldn't load {name} due to {error}");
+                    if let Err(e) = self.nuke(&instance) {
+                        log::error!("cannot nuke {name}: {e}")
+                    }
+                    return
+                };
+                e.get_mut().is_downloading = false;
+
+            },
+            std::collections::hash_map::Entry::Vacant(ve) => {
+                let name = &**ve.key();
+                log::error!("loading event on unexisting server called {name:?}");
+            },
         }
     }
 }
@@ -214,31 +231,58 @@ impl Handler<messages::NewServer> for Servers {
         
         self.servers.insert(Arc::clone(&instance_place), instance);
         
-        
-        // finish loader
-        //todo: handle rest of errors
         std::thread::spawn({
             let addr = ctx.address();
             let instance_place = instance_place;
             let url = msg.url.clone();
-            let tmp_file = format!("/tmp/{}",&msg.name);
+            let output_dir = Arc::clone(&instance_place);
+
+            let job = move || -> anyhow::Result<()> {
+                let response = reqwest::blocking::get(url)?;
+
+                let bytes = response.bytes()?;
+    
+                // Create an in-memory buffer from the bytes
+                let mut cursor = Cursor::new(bytes);
+
+                let mut archive = ZipArchive::new(&mut cursor)?;
+
+                //todo: extract data
+
+                for i in 0..archive.len() {
+                    let mut archive_file = archive.by_index(i)?;
+                    let outpath = match archive_file.enclosed_name() {
+                        Some(path) => (&*output_dir).join(path),
+                        None => continue,
+                    };
+            
+                    // Create directories if necessary
+                    if archive_file.is_dir() {
+                        std::fs::create_dir_all(&outpath)?;
+                    } else {
+                        if let Some(p) = outpath.parent() {
+                            std::fs::create_dir_all(p)?;
+                        }
+                        let mut outfile = File::create(&outpath)?;
+                        copy(&mut archive_file, &mut outfile)?;
+                    }
+                }
+
+                Ok(())
+            };
             move || {
-                let Ok(mut response) = reqwest::blocking::get(url) else {
-                    addr.do_send(messages::LoadingEnded(instance_place,false));
-                    return
-                };
-
-                let mut file = fs::File::create(&tmp_file).unwrap();
-
-                std::io::copy(&mut response, &mut file);
-
-                fs::remove_file(&tmp_file);
-
-                addr.do_send(messages::LoadingEnded(instance_place,true));
+                match job() {
+                    Ok(()) => {
+                        addr.do_send(messages::LoadingEnded(instance_place,None));
+                    },
+                    Err(e) => {
+                        addr.do_send(messages::LoadingEnded(instance_place,Some(e)));
+                    }
+                }
             }
         });
 
-        Err(anyhow!("unimplemented"))
+        Ok(())
     }
 }
 
@@ -307,7 +351,8 @@ impl Handler<messages::DeleteServer> for Servers {
             std::collections::hash_map::Entry::Occupied(e) => {
                 let mut instance = e.remove();
                 instance.kill();
-                std::fs::remove_dir_all(instance.place)?;
+                self.nuke(&instance)?;
+
                 Ok(())
             },
             std::collections::hash_map::Entry::Vacant(_) => Err(anyhow!("trying to delete absent server")),

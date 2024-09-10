@@ -41,4 +41,4 @@ pub struct Tick;
 
 #[derive(Message)]
 #[rtype(result = "()")]
-pub struct LoadingEnded(pub Arc<Path>,pub bool);
+pub struct LoadingEnded(pub Arc<Path>,pub Option<anyhow::Error>);
