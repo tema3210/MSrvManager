@@ -99,7 +99,8 @@ impl Instance {
     }
 
     pub fn flush(&mut self) {
-        serde_json::to_writer(&mut self.manifest, &self.desc);
+        // we don't have anything to do reasonably in case of failure
+        let _ = serde_json::to_writer(&mut self.manifest, &self.desc);
     }
 
     pub fn hb(&mut self) {
@@ -164,7 +165,8 @@ impl Instance {
     pub fn kill(&mut self) {
         match &mut self.process {
             Some(ch) => {
-                ch.kill();
+                // here we can only have a zombie process failure, which is not a failure as such for us
+                let _ = ch.kill();
                 self.desc.state = model::ServerState::Stopped;
                 self.desc.memory = None
             },
