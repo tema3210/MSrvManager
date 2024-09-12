@@ -40,8 +40,6 @@ impl Indices {
     }
 }
 
-const PORT_RANGE: Range<u16> = 25000..63000;
-
 pub struct Servers {
     servers_dir: PathBuf,
     rcon_range: Indices,
@@ -56,7 +54,7 @@ impl Servers {
         res
     }
 
-    pub fn init<P: Into<PathBuf>>(path: P, rcon_range: Range<u16>) -> Option<Self> {
+    pub fn init<P: Into<PathBuf>>(path: P, rcon_range: Range<u16>, port_range: Range<u16>) -> Option<Self> {
         let servers_dir = path.into();
 
         let Ok(servers) = std::fs::read_dir(&servers_dir) else {
@@ -64,7 +62,7 @@ impl Servers {
         };
 
         let mut rcon_range = Indices(rcon_range.clone(),bit_set::BitSet::with_capacity(rcon_range.len()));
-        let mut port_range = Indices(PORT_RANGE,bit_set::BitSet::with_capacity(u16::MAX.into()));
+        let mut port_range = Indices(port_range,bit_set::BitSet::with_capacity(u16::MAX.into()));
 
         let servers: HashMap<_,_> = servers.filter_map(|e| {
             match e {

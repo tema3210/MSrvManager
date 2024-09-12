@@ -93,7 +93,16 @@ async fn main() -> std::io::Result<()> {
         _ => panic!("bad RCON_RANGE format")
     };
 
-    let native = native::Servers::init(srvrs_dir,rcons).expect("cannot init native service").start();
+    let ports = match std::env::var("PORT_RANGE").expect("has to have port range").split('.').filter(|s| !s.is_empty()).collect::<Vec<_>>()[..] {
+        [l,r] => {
+            let l = l.parse().expect("bad port left bound");
+            let r = r.parse().expect("bad port right bound");
+            l..r
+        },
+        _ => panic!("bad PORT_RANGE format")
+    };
+
+    let native = native::Servers::init(srvrs_dir,rcons,ports).expect("cannot init native service").start();
 
     spawn({
         let native = native.clone();
