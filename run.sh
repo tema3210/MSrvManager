@@ -1,1 +1,0 @@
-docker run --init --network host graphql_test 
