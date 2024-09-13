@@ -153,8 +153,8 @@ componentFiles.forEach(file => {
 import ${importName} from '${importPath}';
 type ${importName}Props = Parameters<typeof ${importName}>[0];
 const ${importName}Element = r2wc<${importName}Props>(${importName},{${propsOut}});
-customElements.define('c-${componentName.toLowerCase()}', ${importName}Element);
-${registerJSX(`c-${componentName.toLowerCase()}`,`${importName}Props`)}
+customElements.define('r-${componentName.toLowerCase()}', ${importName}Element);
+${registerJSX(`r-${componentName.toLowerCase()}`,`${importName}Props`)}
 `;
 });
 
