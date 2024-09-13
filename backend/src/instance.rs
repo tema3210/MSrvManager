@@ -160,6 +160,8 @@ impl Instance {
             None => {}
         };
         self.desc.state = model::ServerState::Stopped;
+        self.desc.memory = None;
+        self.flush()
     }
 
     pub fn kill(&mut self) {
