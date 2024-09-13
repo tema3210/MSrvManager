@@ -2,10 +2,9 @@
 use std::{path::PathBuf, sync::Arc, time::Duration};
 
 use actix::{spawn, Actor};
-use actix_web::{get, route, web::{self, Data}, App, HttpServer, Responder};
+use actix_web::{get, route, web::{self, Data, Html}, App, HttpServer, Responder};
 use async_graphql_actix_web::{GraphQLRequest, GraphQLResponse};
 use actix_cors::Cors;
-use actix_web_lab::respond::Html;
 
 pub mod graphql;
 pub mod native;
