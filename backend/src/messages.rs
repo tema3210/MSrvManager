@@ -42,3 +42,7 @@ pub struct Tick;
 #[derive(Message)]
 #[rtype(result = "()")]
 pub struct LoadingEnded(pub Arc<Path>,pub Option<anyhow::Error>);
+
+#[derive(Message)]
+#[rtype(result = "()")]
+pub struct InstanceStopped(pub Arc<Path>);

@@ -1,9 +1,15 @@
-use std::{fs::File, io::{Read, Write}, path::Path};
+use std::{fs::File, io::{ErrorKind, Read, Write}, path::Path, process::Child, thread};
 
 use crate::*;
 
 use anyhow::anyhow;
 use std::process::Command;
+
+pub enum InstanceState {
+    Normal,
+    Downloading,
+    Stopping
+}
 
 
 /// The descriptor of a server
@@ -12,7 +18,7 @@ use std::process::Command;
 /// and `run.command` file
 pub struct Instance {
     pub desc: model::InstanceDescriptor,
-    pub is_downloading: bool,
+    pub instance_state: InstanceState,
     /// should point at directory where Instance is located
     pub place: Arc<Path>,
 
@@ -69,7 +75,7 @@ impl Instance {
 
         Ok(Instance {
             desc,
-            is_downloading: true,
+            instance_state: InstanceState::Normal,
             process: None,
             place,
             manifest,
@@ -95,7 +101,7 @@ impl Instance {
         let mut run_command = Command::new(run_command);
         run_command.current_dir(&*place);
 
-        Ok(Self {desc, place, manifest, run_command, process: None, is_downloading: false})
+        Ok(Self {desc, place, manifest, run_command, process: None, instance_state: InstanceState::Normal})
     }
 
     pub fn flush(&mut self) {
@@ -104,7 +110,7 @@ impl Instance {
     }
 
     pub fn hb(&mut self) {
-        if self.is_downloading {
+        if !matches!(self.instance_state,InstanceState::Normal) {
             return
         }
         match &mut self.process {
@@ -130,7 +136,7 @@ impl Instance {
     }
 
     pub fn start(&mut self) {
-        if self.is_downloading {
+        if !matches!(self.instance_state,InstanceState::Normal) {
             return
         }
         match self.process {
@@ -144,24 +150,64 @@ impl Instance {
         };
     }
 
-    pub fn stop(&mut self) {
-        if self.is_downloading {
+    fn stop_inner(ch: &mut Child, name: Arc<Path>) {
+        if let Some(pipe) =  &mut ch.stdin {
+            loop {
+                match pipe.write(b"stop\n") {
+                    Ok(0) => break, // dead
+                    Ok(_) => {
+                        std::thread::sleep(std::time::Duration::from_secs(5));
+                        continue;
+                    },
+                    Err(e) if e.kind() == ErrorKind::Interrupted => {
+                        continue
+                    },
+                    Err(e) => {
+                        log::error!("cannot stop {:?} due to {} - killing",name,e);
+                        let _ = ch.kill();
+                        break
+                    }
+                }
+            }
+        };
+    }
+
+
+    pub fn stop_async(&mut self, addr: native::Service) {
+        if matches!(self.instance_state,InstanceState::Normal) {
             return
         }
-        match &mut self.process {
-            Some(ch) => {
-                if let Some(pipe) =  &mut ch.stdin {
-                    let res = pipe.write(b"stop\n");
-                    if res.is_err() || matches!(res,Ok(0)) {
-                        // we should wait here for like 5 secs
-                    }
-                };
-            },
-            None => {}
+
+        if let Some(mut ch) = self.process.take() {
+            self.instance_state = InstanceState::Stopping;
+            let name = self.place.clone();
+            thread::spawn(move || {
+                Self::stop_inner(&mut ch, Arc::clone(&name));
+                addr.do_send(messages::InstanceStopped(name));
+            });
+            
         };
+        
+    }
+
+    pub fn finish_stop(&mut self) {
         self.desc.state = model::ServerState::Stopped;
         self.desc.memory = None;
-        self.flush()
+        self.flush();
+        self.instance_state = InstanceState::Normal;
+    }
+
+    /// blocks current thread
+    pub fn stop(&mut self) {
+        if !matches!(self.instance_state,InstanceState::Normal) {
+            return
+        }
+
+        if let Some(mut ch) = self.process.take() {
+            Self::stop_inner(&mut ch, self.place.clone())
+        }
+
+        self.finish_stop()
     }
 
     pub fn kill(&mut self) {

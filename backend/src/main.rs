@@ -1,7 +1,7 @@
 #![recursion_limit = "1024"]
 use std::{path::PathBuf, sync::Arc, time::Duration};
 
-use actix::{spawn, Actor};
+use actix::Actor;
 use actix_web::{get, route, web::{self, Data, Html}, App, HttpServer, Responder};
 use async_graphql_actix_web::{GraphQLRequest, GraphQLResponse};
 use actix_cors::Cors;
@@ -103,14 +103,13 @@ async fn main() -> std::io::Result<()> {
 
     let native = native::Servers::init(srvrs_dir,rcons,ports).expect("cannot init native service").start();
 
-    spawn({
+    // the timer for actor
+    std::thread::spawn({
         let native = native.clone();
-        async move {
+        move || {
             loop {
-                if let Err(_) = native.send(messages::Tick).await {
-                    break
-                };
-                tokio::time::sleep(Duration::from_secs(3)).await
+                native.do_send(messages::Tick);
+                std::thread::sleep(Duration::from_secs(3));
             }
         }
     });

@@ -139,7 +139,7 @@ impl Handler<messages::Instances> for Servers {
     fn handle(&mut self, _: messages::Instances, _: &mut Context<Self>) -> Self::Result {
         MessageResult(self.servers.values()
             .filter_map(|i| {
-                if !i.is_downloading {
+                if matches!(i.instance_state, instance::InstanceState::Normal) {
                     Some(&i.desc)
                 } else {
                     None
@@ -156,6 +156,10 @@ impl Handler<messages::LoadingEnded> for Servers {
     fn handle(&mut self, msg: messages::LoadingEnded, _: &mut Self::Context) -> Self::Result {
         match self.servers.entry(msg.0) {
             std::collections::hash_map::Entry::Occupied(mut e) => {
+                if !matches!(e.get().instance_state, instance::InstanceState::Downloading)  {
+                    log::error!("loading ended recieved for a non loading instance at {:?}",e.key());
+                    return
+                }
                 if let Some(error) = msg.1 {
                     let instance = e.remove();
                     let name = &instance.desc.name;
@@ -165,7 +169,7 @@ impl Handler<messages::LoadingEnded> for Servers {
                     }
                     return
                 };
-                e.get_mut().is_downloading = false;
+                e.get_mut().instance_state = instance::InstanceState::Normal;
 
             },
             std::collections::hash_map::Entry::Vacant(ve) => {
@@ -287,7 +291,7 @@ impl Handler<messages::NewServer> for Servers {
 impl Handler<messages::AlterServer> for Servers {
     type Result = anyhow::Result<()>;
 
-    fn handle(&mut self, msg: messages::AlterServer, _: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: messages::AlterServer, cx: &mut Self::Context) -> Self::Result {
         let path = self.name_to_path(msg.name);
 
         match self.servers.get_mut((&*path).into()) {
@@ -317,7 +321,7 @@ impl Handler<messages::AlterServer> for Servers {
                         if should_run {
                             instance.start();
                         } else {
-                            instance.stop();
+                            instance.stop_async(cx.address());
                         }
                         return Ok(())
                     },
@@ -326,6 +330,25 @@ impl Handler<messages::AlterServer> for Servers {
                 Ok(())
             },
             None => Err(anyhow!("cannot change port to blacklisted")),
+        }
+    }
+}
+
+impl Handler<messages::InstanceStopped> for Servers {
+    type Result = ();
+
+    fn handle(&mut self, msg: messages::InstanceStopped, _: &mut Self::Context) -> Self::Result {
+        match self.servers.entry(msg.0) {
+            std::collections::hash_map::Entry::Occupied(mut e) => {
+                if !matches!(e.get().instance_state, instance::InstanceState::Stopping) {
+                    log::error!("instance stopped message for a not stopping target");
+                    return
+                };
+                e.get_mut().finish_stop();
+            },
+            std::collections::hash_map::Entry::Vacant(_) => {
+                log::error!("instance stopped for unexisting");
+            },
         }
     }
 }
@@ -347,6 +370,9 @@ impl Handler<messages::DeleteServer> for Servers {
 
         match self.servers.entry(path.into()) {
             std::collections::hash_map::Entry::Occupied(e) => {
+                if !matches!(e.get().instance_state, instance::InstanceState::Normal) {
+                    return Err(anyhow!("Resource is in a bad state"));
+                }
                 let mut instance = e.remove();
                 instance.kill();
                 self.nuke(&instance)?;
