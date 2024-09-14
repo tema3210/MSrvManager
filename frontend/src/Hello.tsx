@@ -13,7 +13,7 @@ const Component = ({name, age, flag, array}: {name: string,age: number, flag: bo
         <ul>
             {array.map((v) => <li>{v}</li>)}
         </ul>
-        <c-test obj={"{\"b\": 1}"} name={name}></c-test>
+        <r-test obj={"{\"b\": 1}"} name={name} f={() => alert("GG")}></r-test>
     </>
 }
 
