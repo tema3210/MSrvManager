@@ -6,8 +6,8 @@ function capitalize(str) {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
-const COMPONENTS_DIR = "./src" 
-const OUTPUT_FILE = "entry.tsx"
+const WEBCOMPONENTS_DIR = "./src/web_components" 
+const OUTPUT_FILE = "web_components.tsx"
 
 const registerJSX = (el_name,ty) => {
   return `
@@ -26,13 +26,13 @@ import r2wc from "@r2wc/react-to-web-component"
 `;
 
 // Get all component files
-const componentFiles = fs.readdirSync(COMPONENTS_DIR).filter(file => file.endsWith('.tsx'));
+const componentFiles = fs.readdirSync(WEBCOMPONENTS_DIR).filter(file => file.endsWith('.tsx'));
 
 // Append import statements and component registration code
 componentFiles.forEach(file => {
   const componentName = path.basename(file, path.extname(file));
   const importName = capitalize(componentName);
-  const importPath = `./src/${file}`;
+  const importPath = `./src/web_components/${file}`;
 
   let rwcOptions = ``;
 

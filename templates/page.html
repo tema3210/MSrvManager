@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block title %}
+  {{title}}
+{% endblock %}
+
+{% block chunk %}
+<script src="/static/{{chunk}}"></script>
+{% endblock %}
+
+{% block content %}
+{{content}}
+{% endblock %}

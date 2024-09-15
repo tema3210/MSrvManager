@@ -13,21 +13,18 @@ pub mod messages;
 pub mod instance;
 
 #[derive(askama::Template)]
-#[template(path = "user.html")]
-struct UserTemplate<T: Display, U: Display> {
-    name: T,
-    text: U,
+#[template(path = "page.html")]
+struct Page<C: Display,T: Display, S: Display> {
+    chunk: C,
+    title: T,
+    content: S
 }
-
-#[derive(askama::Template)]
-#[template(path = "index.html")]
-struct Index;
 
 #[derive(askama::Template)]
 #[template(path = "error.html")]
 struct ErrorPage<T: Display, M: Display> {
     title: T,
-    message: M
+    message: M,
 }
 
 /// GraphQL endpoint
@@ -46,19 +43,10 @@ async fn graphql_playground() -> impl Responder {
 
 #[get("/")]
 async fn index() -> impl Responder {
-    Index
-}
-
-#[derive(serde::Deserialize)]
-struct UserQ {
-    name: String
-}
-
-#[get("/user")]
-async fn user(web::Query(UserQ { name }): web::Query<UserQ>) -> impl Responder {
-    UserTemplate {
-        name,
-        text: "tvoi deistviya?"
+    Page {
+        chunk: "index.js",
+        title: "Index",
+        content: "" 
     }
 }
 
@@ -87,10 +75,9 @@ async fn main() -> std::io::Result<()> {
                     Ok(ErrorHandlerResponse::Response(res))
                 })
         )
-        .service(index)
-        .service(user)
         .service(graphql_e)
         .service(graphql_playground)
+        .service(index)
     };
 
     simple_logger::SimpleLogger::new().env().init().unwrap();

@@ -4,8 +4,8 @@ const path = require('path');
 module.exports = {
   mode: "production",
   entry: {
-    bundle: './entry.tsx', // Use the dynamically generated entry file
-    index: './index.tsx'
+    components: './web_components.tsx', // Use the dynamically generated entry file
+    index: { import: './src/Index.tsx', dependOn: 'components'}
   },
   output: {
     path: path.resolve(__dirname, '../static'),

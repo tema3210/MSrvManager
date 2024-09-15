@@ -9,6 +9,6 @@
       "skipLibCheck": true,
       "forceConsistentCasingInFileNames": true
     },
-    "include": ["src","entry.tsx"]
+    "include": ["src","web_components.tsx"]
   }
   
