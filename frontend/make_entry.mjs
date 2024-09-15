@@ -34,7 +34,7 @@ componentFiles.forEach(file => {
   const importName = capitalize(componentName);
   const importPath = `./src/${file}`;
 
-  let propsOut = `props: {}`;
+  let rwcOptions = ``;
 
   const isFunctionLike = (type) => {
     const callSigs = type.getCallSignatures();
@@ -64,7 +64,7 @@ componentFiles.forEach(file => {
     const declarations = symbol.getDeclarations();
 
     if (declarations.length === 0) {
-      console.log("No declarations found for the default export symbol.");
+      console.error("No declarations found for the default export symbol.");
       return;
     }
 
@@ -74,7 +74,7 @@ componentFiles.forEach(file => {
 
     // Check if the value declaration exists
     if (!symbolDeclaration) {
-      console.log("No value declaration found for the default export symbol.");
+      console.error("No value declaration found for the default export symbol.");
       return;
     }
 
@@ -83,67 +83,67 @@ componentFiles.forEach(file => {
 
     // If the type is not found, log an error and return
     if (!type) {
-      console.log("Could not determine the type of the default export symbol.");
+      console.error("Could not determine the type of the default export symbol.");
       return;
     }
 
-    if (!isFunctionLike(type)) {
-      console.log("The default export is not a supported function-like type.");
+    //the function component
+    if (isFunctionLike(type)) {
+
+      const callSigs = type.getCallSignatures();
+
+      const [callSig] = callSigs;
+
+      const params = callSig.getParameters();
+      
+      if (params.length != 1) {
+        console.error("function is not a component")
+        return 
+      }
+
+      const [props] = params;
+
+      const propsType = props.getTypeAtLocation(symbolDeclaration);
+
+      // thereafter we make props decl
+      let propDesc = '';
+      propsType.getProperties().forEach((prop) => {
+        const propName = prop.getName();
+
+        const propTy = prop.getTypeAtLocation(symbolDeclaration);
+
+        // if (isFunctionLike(propTy)) {
+        //   propDesc += `${propName}: "function",`;
+        //   return
+        // };
+
+        if (propTy.isArray() || propTy.isObject()) {
+          propDesc += `${propName}: "json",`;
+          return
+        }
+
+        if (propTy.isBoolean()) {
+          propDesc += `${propName}: "boolean",`;
+          return
+        }
+
+        if (propTy.isString()) {
+          propDesc += `${propName}: "string",`;
+          return
+        }
+
+        if (propTy.isNumber() || propTy.isBigInt()) {
+          propDesc += `${propName}: "number",`;
+          return
+        }
+
+        console.error(`${importPath}: ${propTy.getText()} cannot be passed through RWC`);
+      })
+
+      rwcOptions = `{props: {${propDesc}}}`;
+    } else {
       return
     }
-
-    const callSigs = type.getCallSignatures();
-
-    const [callSig] = callSigs;
-
-    const params = callSig.getParameters();
-    
-    if (params.length != 1) {
-      console.error("function is not a component")
-      return 
-    }
-
-    const [props] = params;
-
-    const propsType = props.getTypeAtLocation(symbolDeclaration);
-
-    
-    // thereafter we make props decl
-    let propDesc = '';
-    propsType.getProperties().forEach((prop) => {
-      const propName = prop.getName();
-
-      const propTy = prop.getTypeAtLocation(symbolDeclaration);
-
-      // if (isFunctionLike(propTy)) {
-      //   propDesc += `${propName}: "function",`;
-      //   return
-      // };
-
-      if (propTy.isArray() || propTy.isObject()) {
-        propDesc += `${propName}: "json",`;
-        return
-      }
-
-      if (propTy.isBoolean()) {
-        propDesc += `${propName}: "boolean",`;
-        return
-      }
-
-      if (propTy.isString()) {
-        propDesc += `${propName}: "string",`;
-        return
-      }
-
-      if (propTy.isNumber() || propTy.isBigInt()) {
-        propDesc += `${propName}: "number",`;
-        return
-      }
-
-      console.error(`${importPath}: ${propTy.getText()} cannot be passed through RWC`);
-    })
-
-    propsOut = `props: {${propDesc}}`;
 
   } catch (e) {
     throw e;
@@ -152,7 +152,7 @@ componentFiles.forEach(file => {
   fileContent += `
 import ${importName} from '${importPath}';
 type ${importName}Props = Parameters<typeof ${importName}>[0];
-const ${importName}Element = r2wc<${importName}Props>(${importName},{${propsOut}});
+const ${importName}Element = r2wc<${importName}Props>(${importName},${rwcOptions});
 customElements.define('r-${componentName.toLowerCase()}', ${importName}Element);
 ${registerJSX(`r-${componentName.toLowerCase()}`,`${importName}Props`)}
 `;

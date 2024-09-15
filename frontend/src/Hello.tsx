@@ -8,15 +8,13 @@ const LeBalique = styled.div`
 const Component = ({name, age, flag, array}: {name: string,age: number, flag: boolean, array: any[] }) => {
     return <>
         <LeBalique>Hello {name} you're {age}</LeBalique>
-        { (flag) ? <div>the flag is set</div> : <></>}
+        { (flag) ? <div>the flag is set</div> : null }
         Array:
         <ul>
             {array.map((v) => <li>{v}</li>)}
         </ul>
-        <r-test obj={"{\"b\": 1}"} name={name} f={() => alert("GG")}></r-test>
+        <r-test id="test" obj={"{\"b\": 1}"} f={() => alert("GG")}></r-test>
     </>
 }
-
-export type ComponentProps = Parameters<typeof Component>[0];
 
 export default Component;

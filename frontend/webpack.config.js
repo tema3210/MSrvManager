@@ -3,10 +3,13 @@ const path = require('path');
 
 module.exports = {
   mode: "production",
-  entry: './entry.tsx',  // Use the dynamically generated entry file
+  entry: {
+    bundle: './entry.tsx', // Use the dynamically generated entry file
+    index: './index.tsx'
+  },
   output: {
     path: path.resolve(__dirname, '../static'),
-    filename: 'bundle.js',
+    filename: '[name].js',
   },
   module: {
     rules: [

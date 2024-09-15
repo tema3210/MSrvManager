@@ -9,7 +9,7 @@ pub struct Query;
 #[Object]
 impl Query {
     async fn api_version(&self) -> &'static str {
-        "0.1"
+        "0.5"
     }
 
     async fn servers<'cx>(&self,ctx: &Context<'cx>) -> Result<Vec<model::InstanceDescriptor>,anyhow::Error> {
