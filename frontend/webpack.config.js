@@ -4,7 +4,9 @@ const path = require('path');
 module.exports = {
   mode: "production",
   entry: {
-    components: './web_components.tsx', // Use the dynamically generated entry file
+    components: {
+      import: ['./web_components.tsx','react','react-dom']
+    }, // Use the dynamically generated entry file
     index: { import: './src/Index.tsx', dependOn: 'components'}
   },
   output: {
