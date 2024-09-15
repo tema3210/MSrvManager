@@ -1,8 +1,8 @@
 #![recursion_limit = "1024"]
-use std::{path::PathBuf, sync::Arc, time::Duration};
+use std::{fmt::Display, path::PathBuf, sync::Arc, time::Duration};
 
 use actix::Actor;
-use actix_web::{get, route, web::{self, Data, Html}, App, HttpServer, Responder};
+use actix_web::{get, http::StatusCode, middleware::{ErrorHandlerResponse, ErrorHandlers}, route, web::{self, Data, Html}, App, HttpServer, Responder};
 use async_graphql_actix_web::{GraphQLRequest, GraphQLResponse};
 use actix_cors::Cors;
 
@@ -14,14 +14,21 @@ pub mod instance;
 
 #[derive(askama::Template)]
 #[template(path = "user.html")]
-struct UserTemplate<T: std::fmt::Display> {
+struct UserTemplate<T: Display, U: Display> {
     name: T,
-    text: T,
+    text: U,
 }
 
 #[derive(askama::Template)]
 #[template(path = "index.html")]
 struct Index;
+
+#[derive(askama::Template)]
+#[template(path = "error.html")]
+struct ErrorPage<T: Display, M: Display> {
+    title: T,
+    message: M
+}
 
 /// GraphQL endpoint
 #[route("/graphql", method = "GET", method = "POST")]
@@ -50,8 +57,8 @@ struct UserQ {
 #[get("/user")]
 async fn user(web::Query(UserQ { name }): web::Query<UserQ>) -> impl Responder {
     UserTemplate {
-        name: name,
-        text: "tvoi deistviya?".into()
+        name,
+        text: "tvoi deistviya?"
     }
 }
 
@@ -61,6 +68,25 @@ async fn main() -> std::io::Result<()> {
 
     let router = |app: actix_web::App<_>| {
         app
+        .wrap(
+            ErrorHandlers::new()
+                .default_handler( |r| {
+                    let (req,res) = r.into_parts();
+                    
+                    let error = ErrorPage {
+                        title: res.status().as_str().to_owned(),
+                        message: "cannot satisfy req"
+                    };
+
+                    let res = error.respond_to(&req);
+
+                    let res = actix_web::dev::ServiceResponse::new(req, res)
+                        .map_into_boxed_body()
+                        .map_into_right_body();
+
+                    Ok(ErrorHandlerResponse::Response(res))
+                })
+        )
         .service(index)
         .service(user)
         .service(graphql_e)
