@@ -5,11 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}{% endblock %}</title>
   <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+  <script src="/static/shared.js"></script>
   <script src="/static/components.js"></script>
+  {% block chunk %}{% endblock %}
 </head>
 <body>
-  {% block content %}<p>Placeholder content</p>{% endblock %}
-  <div id="root"></div>
-  {% block chunk %}{% endblock %}
+  {% block content %}{% endblock %}
 </body>
 </html>

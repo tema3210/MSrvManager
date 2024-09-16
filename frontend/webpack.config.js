@@ -4,10 +4,17 @@ const path = require('path');
 module.exports = {
   mode: "production",
   entry: {
+    'shared': {
+      import: ['react','react-dom']
+    },
     components: {
-      import: ['./web_components.tsx','react','react-dom']
-    }, // Use the dynamically generated entry file
-    index: { import: './src/Index.tsx', dependOn: 'components'}
+      dependOn: 'shared',
+      import: './web_components.tsx'
+    },
+    index: {
+      dependOn: 'shared',
+      import: './src/Index.tsx',
+    }
   },
   output: {
     path: path.resolve(__dirname, '../static'),
