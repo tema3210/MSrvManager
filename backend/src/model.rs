@@ -4,14 +4,14 @@ use serde::{Deserialize,Serialize};
 
 use async_graphql::{Enum, SimpleObject};
 
-#[derive(Copy, Clone, PartialEq, Eq, Enum,Deserialize, Serialize)]
+#[derive(Copy, Clone, PartialEq, Eq, Enum,Deserialize, Serialize,Debug)]
 pub enum ServerState {
     Running,
     Stopped,
     Crashed
 }
 
-#[derive(SimpleObject,Clone, Deserialize, Serialize)]
+#[derive(SimpleObject,Clone, Deserialize, Serialize,Debug)]
 pub struct InstanceDescriptor {
     pub name: String,
     pub mods: url::Url,

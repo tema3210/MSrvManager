@@ -1,10 +1,11 @@
-use std::{fs::File, io::{ErrorKind, Read, Write}, path::Path, process::Child, thread};
+use std::{fs::File, io::{ErrorKind, Read, Seek, SeekFrom, Write}, path::Path, process::Child, thread};
 
 use crate::*;
 
 use anyhow::anyhow;
 use std::process::Command;
 
+#[derive(Debug)]
 pub enum InstanceState {
     Normal,
     Downloading,
@@ -16,6 +17,7 @@ pub enum InstanceState {
 /// at the dir pointed by `place`
 /// there should be `msrvDesc.json` file
 /// and `run.command` file
+#[derive(Debug)]
 pub struct Instance {
     pub desc: model::InstanceDescriptor,
     pub instance_state: InstanceState,
@@ -35,6 +37,7 @@ pub const COMMAND_FILE_NAME: &str = "run.command";
 impl Instance {
     /// should create dir and apropriate manifest files there
     pub fn prepare<P: AsRef<Path>>(at: P) -> anyhow::Result<()> {
+        log::info!("preparing dir for server at {:?}",at.as_ref());
         std::fs::create_dir(&at)?;
 
         std::fs::File::create_new(at.as_ref().join(instance::MANIFEST_NAME))?;
@@ -62,7 +65,7 @@ impl Instance {
         Ok(run_command)
     }
 
-    pub fn create(place: Arc<Path>, desc: model::InstanceDescriptor) -> anyhow::Result<Self> {
+    pub fn create(place: Arc<Path>, desc: model::InstanceDescriptor,state: InstanceState) -> anyhow::Result<Self> {
         if !place.is_dir() {
             return Err(anyhow!("create should be called on dir"));
         }
@@ -75,7 +78,7 @@ impl Instance {
 
         Ok(Instance {
             desc,
-            instance_state: InstanceState::Normal,
+            instance_state: state,
             process: None,
             place,
             manifest,
@@ -84,6 +87,8 @@ impl Instance {
     }
 
     pub fn load(place: Arc<Path>) -> anyhow::Result<Self> {
+
+        log::info!("Loading server instance at {:?}",&*place);
 
         if !place.is_dir() {
             return Err(anyhow!("load should be called on dir"));
@@ -104,9 +109,12 @@ impl Instance {
         Ok(Self {desc, place, manifest, run_command, process: None, instance_state: InstanceState::Normal})
     }
 
+    // we don't have anything to do reasonably in case of failure
     pub fn flush(&mut self) {
-        // we don't have anything to do reasonably in case of failure
+        let _ = self.manifest.seek(SeekFrom::Start(0));
+        let _ = self.manifest.set_len(0);
         let _ = serde_json::to_writer(&mut self.manifest, &self.desc);
+        let _ = self.manifest.flush();
     }
 
     pub fn hb(&mut self) {

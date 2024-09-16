@@ -137,6 +137,7 @@ impl Handler<messages::Instances> for Servers {
     type Result = MessageResult<messages::Instances>;
 
     fn handle(&mut self, _: messages::Instances, _: &mut Context<Self>) -> Self::Result {
+        log::info!("peeking at servers: {:?}",&self.servers);
         MessageResult(self.servers.values()
             .filter_map(|i| {
                 if matches!(i.instance_state, instance::InstanceState::Normal) {
@@ -229,7 +230,7 @@ impl Handler<messages::NewServer> for Servers {
         
         drop(cmd_file);
 
-        let instance = Instance::create(Arc::clone(&instance_place), desc)?;
+        let instance = Instance::create(Arc::clone(&instance_place), desc,instance::InstanceState::Downloading)?;
         
         self.servers.insert(Arc::clone(&instance_place), instance);
         
