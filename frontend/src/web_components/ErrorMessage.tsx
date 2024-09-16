@@ -6,6 +6,8 @@ const ErrorMessage = styled.div`
     font-style: italic;
 `;
 
-export default ({msg}: {msg: string}) => {
-    <ErrorMessage>{msg}</ErrorMessage>
+const C = ({msg}: {msg: string}) => {
+    return <ErrorMessage>{msg}</ErrorMessage>
 };
+
+export default C;

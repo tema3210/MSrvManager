@@ -1,11 +1,23 @@
-import { createRoot } from 'react-dom/client';
+import { makeOnLoad } from "./lib";
 
-window.onload = () => {
-    // Render your React component instead
-    const app = document.getElementById('app');
-    if (app) {
-        const root = createRoot(app);
-        console.log("root created: ",root);
-        root.render(<h1>Hello, world</h1>);
-    }
+import { useQuery, gql } from "@apollo/client";
+
+const Index = ({}) => {
+
+    const { data, loading, error } = useQuery(gql`
+        {
+          servers {
+            name,
+            memory,
+            maxMemory
+          }
+        }
+      `);
+
+    if (loading) return "Loading...";
+    if (error) return <pre>{error.message}</pre>
+
+    return <>Hello, we have {JSON.stringify(data)}</>
 }
+
+window.onload = makeOnLoad(<Index />)

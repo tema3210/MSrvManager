@@ -5,7 +5,7 @@ module.exports = {
   mode: "production",
   entry: {
     'shared': {
-      import: ['react','react-dom']
+      import: ['react','react-dom','./src/lib.tsx']
     },
     components: {
       dependOn: 'shared',

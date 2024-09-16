@@ -2,7 +2,7 @@
 use std::{fmt::Display, path::PathBuf, sync::Arc, time::Duration};
 
 use actix::Actor;
-use actix_web::{get, middleware::{ErrorHandlerResponse, ErrorHandlers}, route, web::{self, Data, Html}, App, HttpServer, Responder};
+use actix_web::{get, middleware::{ErrorHandlerResponse, ErrorHandlers}, route, web::{self, Data}, App, HttpServer, Responder};
 use async_graphql_actix_web::{GraphQLRequest, GraphQLResponse};
 use actix_cors::Cors;
 
@@ -28,17 +28,9 @@ struct ErrorPage<T: Display, M: Display> {
 }
 
 /// GraphQL endpoint
-#[route("/graphql", method = "GET", method = "POST")]
+#[route("/graphql", method = "GET", method = "POST", method = "HEAD")]
 async fn graphql_e(schema: web::Data<graphql::SrvsSchema>, req: GraphQLRequest) -> GraphQLResponse {
     schema.execute(req.into_inner()).await.into()
-}
-
-/// GraphiQL playground UI
-#[get("/graphiql")]
-async fn graphql_playground() -> impl Responder {
-    Html::new(async_graphql::http::playground_source(
-        async_graphql::http::GraphQLPlaygroundConfig::new("/graphql").subscription_endpoint("/graphql"),
-    ))
 }
 
 #[get("/")]
@@ -46,7 +38,7 @@ async fn index() -> impl Responder {
     Page {
         chunk: "index.js",
         title: "Index",
-        content: "" 
+        content: ""
     }
 }
 
@@ -76,7 +68,6 @@ async fn main() -> std::io::Result<()> {
                 })
         )
         .service(graphql_e)
-        .service(graphql_playground)
         .service(index)
     };
 
