@@ -46,7 +46,7 @@ async fn index() -> impl Responder {
     Page {
         chunk: "index.js",
         title: "Index",
-        content: "<div id='app'></div>" 
+        content: "" 
     }
 }
 
