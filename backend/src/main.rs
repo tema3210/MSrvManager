@@ -2,7 +2,7 @@
 use std::{fmt::Display, path::PathBuf, sync::Arc, time::Duration};
 
 use actix::Actor;
-use actix_web::{get, http::StatusCode, middleware::{ErrorHandlerResponse, ErrorHandlers}, route, web::{self, Data, Html}, App, HttpServer, Responder};
+use actix_web::{get, middleware::{ErrorHandlerResponse, ErrorHandlers}, route, web::{self, Data, Html}, App, HttpServer, Responder};
 use async_graphql_actix_web::{GraphQLRequest, GraphQLResponse};
 use actix_cors::Cors;
 
@@ -136,7 +136,10 @@ async fn main() -> std::io::Result<()> {
         move || {
             let app = App::new()
                 .app_data(Data::from(schema.clone()))
-                .service(actix_files::Files::new("/static", "./static"));
+                .service(
+                    actix_files::Files::new("/static", "./static")
+                        .prefer_utf8(true)
+                );
             let app = router(app)
                 .wrap(Cors::permissive())
                 .wrap(actix_web::middleware::Logger::default());
