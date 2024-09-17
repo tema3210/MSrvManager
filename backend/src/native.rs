@@ -137,7 +137,6 @@ impl Handler<messages::Instances> for Servers {
     type Result = MessageResult<messages::Instances>;
 
     fn handle(&mut self, _: messages::Instances, _: &mut Context<Self>) -> Self::Result {
-        log::info!("peeking at servers: {:?}",&self.servers);
         MessageResult(self.servers.values()
             .filter_map(|i| {
                 if matches!(i.instance_state, instance::InstanceState::Normal) {

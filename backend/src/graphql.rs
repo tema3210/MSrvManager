@@ -2,6 +2,7 @@ use async_graphql::{InputObject, Schema, Subscription, Upload };
 
 use async_graphql::{Context, Object};
 use futures::StreamExt;
+use tokio::time::MissedTickBehavior;
 
 use crate::*;
 
@@ -115,16 +116,23 @@ impl Subscription {
         log::trace!("Initializing servers subscription");
         let service = ctx.data_unchecked::<native::Service>();
 
-        tokio_stream::wrappers::IntervalStream::new(tokio::time::interval(Duration::from_secs(4)))
-            .then(move |_| async {
-                match service.send(messages::Instances).await {
-                    Ok(data) => data,
-                    Err(e) => {
-                        log::error!("cannot get instance list: {}",e);
-                        vec![]
-                    }
+        tokio_stream::wrappers::IntervalStream::new({
+            let mut i = tokio::time::interval(Duration::from_secs(4));
+            i.set_missed_tick_behavior(MissedTickBehavior::Skip);
+            i
+        })
+        .then(move |_| async {
+            //we send heartbeat - can be put out of sync
+            service.do_send(messages::Tick);
+            //then we ask for the data
+            match service.send(messages::Instances).await {
+                Ok(data) => data,
+                Err(e) => {
+                    log::error!("cannot get instance list: {}",e);
+                    vec![]
                 }
-            })
+            }
+        })
     }
 }
 
