@@ -2,7 +2,8 @@
 use std::{fmt::Display, path::PathBuf, sync::Arc, time::Duration};
 
 use actix::Actor;
-use actix_web::{get, guard, middleware::{ErrorHandlerResponse, ErrorHandlers}, web::{self, Data}, App, HttpRequest, HttpResponse, HttpServer, Responder};
+use actix_web::{get, guard, middleware::{ErrorHandlerResponse, ErrorHandlers}, route, web::{self, Data}, App, HttpRequest, HttpResponse, HttpServer, Responder};
+use async_graphql::http::{playground_source, GraphQLPlaygroundConfig};
 use async_graphql_actix_web::{GraphQLRequest, GraphQLResponse, GraphQLSubscription};
 use actix_cors::Cors;
 
@@ -27,7 +28,16 @@ struct ErrorPage<T: Display, M: Display> {
     message: M,
 }
 
+#[get("/graphiql")]
+async fn graphiql() -> HttpResponse {
+    HttpResponse::Ok()
+        .content_type("text/html; charset=utf-8")
+        .body(playground_source(GraphQLPlaygroundConfig::new("/graphql")))
+}
+
+#[route("/graphql", method = "GET", method = "HEAD", method = "POST")]
 async fn graphql_e(schema: web::Data<graphql::SrvsSchema>, req: GraphQLRequest) -> GraphQLResponse {
+    log::info!("some graphql going on");
     schema.execute(req.into_inner()).await.into()
 }
 
@@ -79,19 +89,17 @@ async fn main() -> std::io::Result<()> {
                 })
         )
         .service(
-            web::resource("/graphql")
+            web::resource("/graphql_ws")
                 .guard(guard::Get())
                 .guard(guard::Header("upgrade", "websocket"))
                 .to(graphql_ws),
         )
-        .service(
-            web::resource("/graphql")
-                .guard(guard::Get())
-                .guard(guard::Post())
-                .guard(guard::Head())
-                .to(graphql_e)
-        )
+        .service(graphql_e)
         .service(index)
+        .service(graphiql)
+        
+        
+        
     };
 
     simple_logger::SimpleLogger::new().env().init().unwrap();
@@ -100,6 +108,7 @@ async fn main() -> std::io::Result<()> {
         .expect("no port specified")
         .parse::<u16>()
         .expect("bad port format");
+
     let addr = std::env::var("ADDR")
         .expect("no addr specified")
         .parse::<std::net::Ipv4Addr>()
@@ -143,8 +152,8 @@ async fn main() -> std::io::Result<()> {
                         .prefer_utf8(true)
                 );
             let app = router(app)
-                .wrap(Cors::permissive())
-                .wrap(actix_web::middleware::Logger::default());
+                .wrap(Cors::permissive());
+                // .wrap(actix_web::middleware::Logger::default());
             app
         }
     })

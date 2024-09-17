@@ -138,14 +138,9 @@ impl Handler<messages::Instances> for Servers {
 
     fn handle(&mut self, _: messages::Instances, _: &mut Context<Self>) -> Self::Result {
         MessageResult(self.servers.values()
-            .filter_map(|i| {
-                if matches!(i.instance_state, instance::InstanceState::Normal) {
-                    Some(&i.desc)
-                } else {
-                    None
-                }
-            })
-            .cloned().collect()
+            .map(|i| &i.desc)
+            .cloned()
+            .collect()
         )
     }
 }
@@ -208,8 +203,8 @@ impl Handler<messages::NewServer> for Servers {
         log::info!("create server at {:?}", &*path);
 
         let desc: model::InstanceDescriptor = model::InstanceDescriptor {
-            name: msg.name.clone(),
-            mods: msg.url.clone(),
+            name: msg.name,
+            mods: msg.url,
             state: model::ServerState::Stopped,
             max_memory: msg.max_memory,
             memory: None,
@@ -236,7 +231,6 @@ impl Handler<messages::NewServer> for Servers {
         std::thread::spawn({
             let addr = ctx.address();
             let instance_place = instance_place;
-            // let url = msg.url.clone();
             let output_dir = Arc::clone(&instance_place);
 
             let mut instance_data = msg.instance_upload.content;
@@ -248,12 +242,6 @@ impl Handler<messages::NewServer> for Servers {
             });
 
             let job = move || -> anyhow::Result<()> {
-                // let response = reqwest::blocking::get(url)?;
-
-                // let bytes = response.bytes()?;
-    
-                // Create an in-memory buffer from the bytes
-                // let mut cursor = BufReader::new(instance_data);
 
                 let mut archive = ZipArchive::new(&mut instance_data)?;
 

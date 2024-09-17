@@ -1,35 +1,47 @@
+import { useEffect, useState } from "react";
 import { makeOnLoad } from "./lib";
 
-import { gql, useMutation, useSubscription } from "@apollo/client";
+import { gql, useMutation, useSubscription, useQuery } from "@apollo/client";
 
 const Index = ({}) => {
 
+    // const {data: apiV, loading: lV} = useQuery(gql`
+    //     apiVersion
+    // `);
+
     const { data, loading, error } = useSubscription(gql`
-        subscription  {
+        subscription {
             servers {
                 name,
                 memory,
                 maxMemory
             }
         }
-      `);
+    `);
 
-    const urlToZip = "https://drive.google.com/file/d/1g1ug7Fr9yH7RxfqBx5rFyeOHRXENTeZY/view?usp=drive_link";
+    const [file,setFile] = useState<any>(null);
 
-    const mutationQ = gql`
-        mutation Mutation($driveUrl: Url!) {
-            newServer(name: "test", cmds: {
-                up: "echo hi",
-                setup: "echo bye"
-            }, url: $driveUrl, maxMemory: 1.5, port: 25565, rcon: 26001)
+    useEffect(() => console.log("file:",file),[file]);
+
+    const [createServer] = useMutation(gql`
+        mutation Mutation($file: Upload!) {
+            newServer(
+                name: "test",
+                cmds: {
+                    up: "echo hi",
+                    setup: "echo bye"
+                },
+                url: "http://google.com",
+                maxMemory: 1.5,
+                port: 25565,
+                rcon: 26001,
+                instanceUpload: $file
+            )
         }
-    `;
-
-    const [create, mr] = useMutation(
-        mutationQ,
+        `,
         {
             variables: {
-                driveUrl: urlToZip
+                file
             }
         }
     );
@@ -39,8 +51,9 @@ const Index = ({}) => {
 
     return <>
         <p>Hello, we have {JSON.stringify(data)}</p>
-        <button onClick={() => create()}>test create server</button>
-        {/* <p>the mutation results: {JSON.stringify(mr)}</p> */}
+        {/* <p>{(lV)? JSON.stringify(apiV) : null}</p> */}
+        <input type="file" onChange={(ev) => setFile(ev.target.value)} /><br />
+        <button onClick={() => createServer()}>test create server (with file)</button>
     </>
 }
 

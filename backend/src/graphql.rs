@@ -30,17 +30,19 @@ impl Mutation {
     async fn new_server<'cx>(
         &self,
         ctx: &Context<'cx>,
-        name: String, 
+        name: String,
         cmds: InstanceCommands,
         url: url::Url,
-        max_memory: f64, 
-        port: u16, 
+        max_memory: f64,
+        port: u16,
         rcon: u16,
         instance_upload: Upload
     ) -> Result<bool,anyhow::Error> {
         let service = ctx.data_unchecked::<native::Service>();
 
-        let val = instance_upload.value(ctx).unwrap();
+        log::info!("got the value: {:?}",&instance_upload);
+
+        let val = instance_upload.value(ctx)?;
         
         service.send(messages::NewServer {
             name,
@@ -121,7 +123,7 @@ impl Subscription {
             i.set_missed_tick_behavior(MissedTickBehavior::Skip);
             i
         })
-        .then(move |_| async {
+        .then(|_| async {
             //we send heartbeat - can be put out of sync
             service.do_send(messages::Tick);
             //then we ask for the data

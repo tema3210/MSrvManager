@@ -10,7 +10,7 @@ const httpLink = new HttpLink({
 
 // WebSocket link for subscriptions
 const wsLink = new WebSocketLink({
-  uri: `ws://${location.hostname}/graphql`,
+  uri: `ws://${location.hostname}/graphql_ws`,
   options: {
     reconnect: true,
   },
@@ -32,6 +32,9 @@ const splitLink = split(
 const client = new ApolloClient({
     link: splitLink,
     cache: new InMemoryCache(),
+    devtools: {
+      enabled: true
+    }
 });
 
 export const Wrapper = ({component}: {component: React.ReactNode}) => {
