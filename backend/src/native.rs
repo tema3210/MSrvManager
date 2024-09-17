@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs::File, io::{copy, Cursor, Write}, ops::Range, path::{Path, PathBuf}};
+use std::{collections::HashMap, fs::File, io::{copy, Write}, ops::Range, path::{Path, PathBuf}};
 use zip::ZipArchive;
 
 use anyhow::anyhow;
@@ -237,8 +237,10 @@ impl Handler<messages::NewServer> for Servers {
         std::thread::spawn({
             let addr = ctx.address();
             let instance_place = instance_place;
-            let url = msg.url.clone();
+            // let url = msg.url.clone();
             let output_dir = Arc::clone(&instance_place);
+
+            let mut instance_data = msg.instance_upload.content;
 
             let setup_cmd = msg.setup_cmd.map(|c| {
                 let mut cmd = std::process::Command::new(c);
@@ -247,14 +249,14 @@ impl Handler<messages::NewServer> for Servers {
             });
 
             let job = move || -> anyhow::Result<()> {
-                let response = reqwest::blocking::get(url)?;
+                // let response = reqwest::blocking::get(url)?;
 
-                let bytes = response.bytes()?;
+                // let bytes = response.bytes()?;
     
                 // Create an in-memory buffer from the bytes
-                let mut cursor = Cursor::new(bytes);
+                // let mut cursor = BufReader::new(instance_data);
 
-                let mut archive = ZipArchive::new(&mut cursor)?;
+                let mut archive = ZipArchive::new(&mut instance_data)?;
 
                 //todo: extract data
 
@@ -276,6 +278,8 @@ impl Handler<messages::NewServer> for Servers {
                         copy(&mut archive_file, &mut outfile)?;
                     }
                 }
+
+                //...
 
                 if let Some(mut c) = setup_cmd {
                     if c.spawn()?.wait()?.success() {

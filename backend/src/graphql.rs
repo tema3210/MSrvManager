@@ -1,4 +1,4 @@
-use async_graphql::{EmptySubscription, InputObject, Schema };
+use async_graphql::{EmptySubscription, InputObject, Schema, Upload };
 
 use async_graphql::{Context, Object};
 
@@ -31,8 +31,20 @@ pub struct Mutation;
 #[Object]
 impl Mutation {
 
-    async fn new_server<'cx>(&self,ctx: &Context<'cx>,name: String, cmds: InstanceCommands,url: url::Url, max_memory: f64, port: u16, rcon: u16) -> Result<bool,anyhow::Error> {
-        let service = ctx.data_unchecked::<native::Service>().clone();
+    async fn new_server<'cx>(
+        &self,
+        ctx: &Context<'cx>,
+        name: String, 
+        cmds: InstanceCommands,
+        url: url::Url,
+        max_memory: f64, 
+        port: u16, 
+        rcon: u16,
+        instance_upload: Upload
+    ) -> Result<bool,anyhow::Error> {
+        let service = ctx.data_unchecked::<native::Service>();
+
+        let val = instance_upload.value(ctx).unwrap();
         
         service.send(messages::NewServer {
             name,
@@ -41,7 +53,8 @@ impl Mutation {
             url,
             max_memory,
             port,
-            rcon
+            rcon,
+            instance_upload: val
         }).await??;
 
         Ok(true)

@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use actix::Message;
+use async_graphql::UploadValue;
 
 use crate::*;
 
@@ -16,6 +17,7 @@ pub struct NewServer {
     pub up_cmd: String,
     pub setup_cmd: Option<String>,
     pub url: url::Url,
+    pub instance_upload: UploadValue,
     pub max_memory: f64,
     pub port: u16,
     pub rcon: u16
