@@ -27,7 +27,6 @@ struct ErrorPage<T: Display, M: Display> {
     message: M,
 }
 
-/// GraphQL endpoint
 #[route("/graphql", method = "GET", method = "POST", method = "HEAD")]
 async fn graphql_e(schema: web::Data<graphql::SrvsSchema>, req: GraphQLRequest) -> GraphQLResponse {
     schema.execute(req.into_inner()).await.into()
@@ -37,7 +36,7 @@ async fn graphql_e(schema: web::Data<graphql::SrvsSchema>, req: GraphQLRequest) 
 async fn index() -> impl Responder {
     Page {
         chunk: "index.js",
-        title: "Index",
+        title: "Servers",
         content: ""
     }
 }
@@ -55,7 +54,7 @@ async fn main() -> std::io::Result<()> {
                     
                     let error = ErrorPage {
                         title: res.status().as_str().to_owned(),
-                        message: "cannot satisfy req"
+                        message: "cannot satisfy request"
                     };
 
                     let res = error.respond_to(&req);
@@ -113,7 +112,7 @@ async fn main() -> std::io::Result<()> {
         move || {
             loop {
                 native.do_send(messages::Tick);
-                std::thread::sleep(Duration::from_secs(3));
+                std::thread::sleep(Duration::from_secs(4));
             }
         }
     });
@@ -121,7 +120,6 @@ async fn main() -> std::io::Result<()> {
     let schema = Arc::new(graphql::schema(native));
 
     log::info!("starting HTTP server on port {port}");
-    log::info!("GraphiQL playground: http://localhost:{port}/graphiql");
 
     HttpServer::new({
         move || {

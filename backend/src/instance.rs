@@ -118,9 +118,11 @@ impl Instance {
     }
 
     pub fn hb(&mut self) {
+        
         if !matches!(self.instance_state,InstanceState::Normal) {
             return
         }
+
         match &mut self.process {
             Some(ch) => {
                 if let Ok(process) = procfs::process::Process::new(ch.id().try_into().unwrap()) {

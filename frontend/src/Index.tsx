@@ -32,9 +32,7 @@ const Index = ({}) => {
                 driveUrl: urlToZip
             }
         }
-    )
-
-    console.log(mr)
+    );
 
     if (loading) return "Loading server list";
     if (error) return <pre>{error.message}</pre>

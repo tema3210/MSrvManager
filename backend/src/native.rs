@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs::File, io::{copy,Write,Cursor}, ops::Range, path::{Path, PathBuf}};
+use std::{collections::HashMap, fs::File, io::{copy, Cursor, Write}, ops::Range, path::{Path, PathBuf}};
 use zip::ZipArchive;
 
 use anyhow::anyhow;
@@ -240,6 +240,12 @@ impl Handler<messages::NewServer> for Servers {
             let url = msg.url.clone();
             let output_dir = Arc::clone(&instance_place);
 
+            let setup_cmd = msg.setup_cmd.map(|c| {
+                let mut cmd = std::process::Command::new(c);
+                cmd.current_dir(&*instance_place);
+                cmd
+            });
+
             let job = move || -> anyhow::Result<()> {
                 let response = reqwest::blocking::get(url)?;
 
@@ -271,7 +277,15 @@ impl Handler<messages::NewServer> for Servers {
                     }
                 }
 
-                Ok(())
+                if let Some(mut c) = setup_cmd {
+                    if c.spawn()?.wait()?.success() {
+                        Ok(())
+                    } else {
+                        Err(anyhow!("the setup command didn't succeed"))
+                    }
+                } else {
+                    Ok(())
+                }
             };
             move || {
                 match job() {
@@ -358,6 +372,7 @@ impl Handler<messages::Tick> for Servers {
     type Result = MessageResult<messages::Tick>;
 
     fn handle(&mut self, _: messages::Tick, _: &mut Self::Context) -> Self::Result {
+        log::trace!("tick tac");
         self.hb();
         MessageResult(())
     }
