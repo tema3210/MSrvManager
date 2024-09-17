@@ -2,8 +2,8 @@
 use std::{fmt::Display, path::PathBuf, sync::Arc, time::Duration};
 
 use actix::Actor;
-use actix_web::{get, middleware::{ErrorHandlerResponse, ErrorHandlers}, route, web::{self, Data}, App, HttpServer, Responder};
-use async_graphql_actix_web::{GraphQLRequest, GraphQLResponse};
+use actix_web::{get, guard, middleware::{ErrorHandlerResponse, ErrorHandlers}, web::{self, Data}, App, HttpRequest, HttpResponse, HttpServer, Responder};
+use async_graphql_actix_web::{GraphQLRequest, GraphQLResponse, GraphQLSubscription};
 use actix_cors::Cors;
 
 pub mod graphql;
@@ -27,9 +27,21 @@ struct ErrorPage<T: Display, M: Display> {
     message: M,
 }
 
-#[route("/graphql", method = "GET", method = "POST", method = "HEAD")]
 async fn graphql_e(schema: web::Data<graphql::SrvsSchema>, req: GraphQLRequest) -> GraphQLResponse {
     schema.execute(req.into_inner()).await.into()
+}
+
+async fn graphql_ws(
+    schema: web::Data<graphql::SrvsSchema>,
+    req: HttpRequest,
+    payload: web::Payload,
+) -> actix_web::Result<HttpResponse> {
+    GraphQLSubscription::new(graphql::SrvsSchema::clone(&*schema))
+        .start(&req, payload)
+        .map_err(|err| {
+            log::error!("WebSocket subscription error: {}", err);
+            actix_web::error::ErrorInternalServerError(err)
+        })
 }
 
 #[get("/")]
@@ -49,7 +61,7 @@ async fn main() -> std::io::Result<()> {
         app
         .wrap(
             ErrorHandlers::new()
-                .default_handler( |r| {
+                .default_handler(|r| {
                     let (req,res) = r.into_parts();
                     
                     let error = ErrorPage {
@@ -66,7 +78,19 @@ async fn main() -> std::io::Result<()> {
                     Ok(ErrorHandlerResponse::Response(res))
                 })
         )
-        .service(graphql_e)
+        .service(
+            web::resource("/graphql")
+                .guard(guard::Get())
+                .guard(guard::Header("upgrade", "websocket"))
+                .to(graphql_ws),
+        )
+        .service(
+            web::resource("/graphql")
+                .guard(guard::Get())
+                .guard(guard::Post())
+                .guard(guard::Head())
+                .to(graphql_e)
+        )
         .service(index)
     };
 
@@ -105,17 +129,6 @@ async fn main() -> std::io::Result<()> {
     };
 
     let native = native::Servers::init(srvrs_dir,rcons,ports).expect("cannot init native service").start();
-
-    // the timer for actor
-    std::thread::spawn({
-        let native = native.clone();
-        move || {
-            loop {
-                native.do_send(messages::Tick);
-                std::thread::sleep(Duration::from_secs(4));
-            }
-        }
-    });
 
     let schema = Arc::new(graphql::schema(native));
 

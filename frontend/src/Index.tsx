@@ -1,16 +1,16 @@
 import { makeOnLoad } from "./lib";
 
-import { useQuery, gql, useMutation } from "@apollo/client";
+import { gql, useMutation, useSubscription } from "@apollo/client";
 
 const Index = ({}) => {
 
-    const { data, loading, error } = useQuery(gql`
-        {
-          servers {
-            name,
-            memory,
-            maxMemory
-          }
+    const { data, loading, error } = useSubscription(gql`
+        subscription  {
+            servers {
+                name,
+                memory,
+                maxMemory
+            }
         }
       `);
 

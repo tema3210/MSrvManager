@@ -33,3 +33,5 @@ procfs = { version = "0.16.0", default-features = false }
 zip = { version = "2.2.0", default-features = false, features = ["deflate","deflate64","zstd","aes-crypto"] }
 openssl = { version = "0.10.66", features = ["vendored"] }
 bytes = "1.7.1"
+futures = "0.3.30"
+tokio-stream = "0.1.16"

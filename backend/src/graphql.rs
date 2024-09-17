@@ -1,6 +1,7 @@
-use async_graphql::{EmptySubscription, InputObject, Schema, Upload };
+use async_graphql::{InputObject, Schema, Subscription, Upload };
 
 use async_graphql::{Context, Object};
+use futures::StreamExt;
 
 use crate::*;
 
@@ -9,13 +10,7 @@ pub struct Query;
 #[Object]
 impl Query {
     async fn api_version(&self) -> &'static str {
-        "0.5"
-    }
-
-    async fn servers<'cx>(&self,ctx: &Context<'cx>) -> Result<Vec<model::InstanceDescriptor>,anyhow::Error> {
-        let service = ctx.data_unchecked::<native::Service>();
-
-        Ok(service.send(messages::Instances).await?)
+        "0.6"
     }
 }
 
@@ -112,13 +107,34 @@ impl Mutation {
     }
 }
 
+pub struct Subscription;
+
+#[Subscription]
+impl Subscription {
+    async fn servers<'cx>(&self,ctx: &Context<'cx>) -> impl futures::Stream<Item=Vec<model::InstanceDescriptor> > + 'cx {
+        log::trace!("Initializing servers subscription");
+        let service = ctx.data_unchecked::<native::Service>();
+
+        tokio_stream::wrappers::IntervalStream::new(tokio::time::interval(Duration::from_secs(4)))
+            .then(move |_| async {
+                match service.send(messages::Instances).await {
+                    Ok(data) => data,
+                    Err(e) => {
+                        log::error!("cannot get instance list: {}",e);
+                        vec![]
+                    }
+                }
+            })
+    }
+}
+
 
 // A root schema consists of a query and a mutation.
 // Request queries can be executed against a RootNode.
-pub type SrvsSchema = Schema<Query, Mutation, EmptySubscription>;
+pub type SrvsSchema = Schema<Query, Mutation, Subscription>;
 
 pub fn schema(addr: crate::native::Service) -> SrvsSchema {
-    Schema::build(Query,Mutation, EmptySubscription)
+    Schema::build(Query,Mutation, Subscription)
     .data::<native::Service>(addr)
     .finish()
 }
