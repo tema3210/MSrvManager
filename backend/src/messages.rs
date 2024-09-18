@@ -6,7 +6,7 @@ use async_graphql::UploadValue;
 use crate::*;
 
 /// Define message
-#[derive(Message)]
+#[derive(Message,Debug)]
 #[rtype(result = "Vec<model::InstanceDescriptor>")]
 pub struct Instances;
 
@@ -23,28 +23,28 @@ pub struct NewServer {
     pub rcon: u16
 }
 
-#[derive(Message)]
+#[derive(Message,Debug)]
 #[rtype(result = "anyhow::Result<()>")]
 pub struct DeleteServer {
     pub name: String
 }
 
 
-#[derive(Message)]
+#[derive(Message,Debug)]
 #[rtype(result = "anyhow::Result<()>")]
 pub struct AlterServer {
     pub name: String,
     pub change: model::ServerChange
 }
 
-#[derive(Message)]
+#[derive(Message,Debug)]
 #[rtype(result = "()")]
 pub struct Tick;
 
-#[derive(Message)]
+#[derive(Message,Debug)]
 #[rtype(result = "()")]
 pub struct LoadingEnded(pub Arc<Path>,pub Option<anyhow::Error>);
 
-#[derive(Message)]
+#[derive(Message,Debug)]
 #[rtype(result = "()")]
 pub struct InstanceStopped(pub Arc<Path>);

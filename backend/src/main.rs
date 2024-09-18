@@ -2,6 +2,7 @@
 use std::{fmt::Display, path::PathBuf, sync::Arc, time::Duration};
 
 use actix::Actor;
+
 use actix_web::{get, guard, middleware::{ErrorHandlerResponse, ErrorHandlers}, route, web::{self, Data}, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use async_graphql::http::{playground_source, GraphQLPlaygroundConfig};
 use async_graphql_actix_web::{GraphQLRequest, GraphQLResponse, GraphQLSubscription};
@@ -36,8 +37,10 @@ async fn graphiql() -> HttpResponse {
 }
 
 #[route("/graphql", method = "GET", method = "HEAD", method = "POST")]
-async fn graphql_e(schema: web::Data<graphql::SrvsSchema>, req: GraphQLRequest) -> GraphQLResponse {
-    log::info!("some graphql going on");
+async fn graphql_e(
+    schema: web::Data<graphql::SrvsSchema>, 
+    req: GraphQLRequest,
+) -> GraphQLResponse {
     schema.execute(req.into_inner()).await.into()
 }
 

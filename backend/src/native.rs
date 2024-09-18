@@ -181,7 +181,6 @@ impl Handler<messages::NewServer> for Servers {
     fn handle(&mut self, msg: messages::NewServer, ctx: &mut Self::Context) -> Self::Result {
         let path = self.name_to_path(&msg.name);
         
-
         if path.exists() && self.servers.contains_key((&*path).into()) {
             return Err(anyhow!("server name is already in use"))
         }
@@ -231,6 +230,7 @@ impl Handler<messages::NewServer> for Servers {
         std::thread::spawn({
             let addr = ctx.address();
             let instance_place = instance_place;
+            
             let output_dir = Arc::clone(&instance_place);
 
             let mut instance_data = msg.instance_upload.content;
@@ -241,11 +241,13 @@ impl Handler<messages::NewServer> for Servers {
                 cmd
             });
 
+
+            let name = Arc::clone(&instance_place);
             let job = move || -> anyhow::Result<()> {
 
                 let mut archive = ZipArchive::new(&mut instance_data)?;
 
-                //todo: extract data
+                log::info!("starting to unpack to {:?}",&*name);
 
                 for i in 0..archive.len() {
                     let mut archive_file = archive.by_index(i)?;
@@ -265,8 +267,6 @@ impl Handler<messages::NewServer> for Servers {
                         copy(&mut archive_file, &mut outfile)?;
                     }
                 }
-
-                //...
 
                 if let Some(mut c) = setup_cmd {
                     if c.spawn()?.wait()?.success() {

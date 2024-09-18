@@ -1,12 +1,15 @@
 import { createRoot } from 'react-dom/client';
-import { ApolloClient, InMemoryCache, split, HttpLink, ApolloProvider } from '@apollo/client';
+import React from 'react';
+import {
+  ApolloClient,
+  InMemoryCache,
+  split,
+  ApolloProvider
+} from '@apollo/client';
 import { WebSocketLink } from '@apollo/client/link/ws';
 import { getMainDefinition } from '@apollo/client/utilities';
-
-// HTTP link for queries/mutations
-const httpLink = new HttpLink({
-  uri: '/graphql',
-});
+//@ts-ignore
+import createUploadLink from 'apollo-upload-client/createUploadLink.mjs';
 
 // WebSocket link for subscriptions
 const wsLink = new WebSocketLink({
@@ -16,7 +19,11 @@ const wsLink = new WebSocketLink({
   },
 });
 
-// Use WebSocket for subscriptions and HTTP for queries/mutations
+const formDataLink = createUploadLink({
+  uri: '/graphql'
+});
+
+// Use WebSocket for subscriptions and the custom formDataLink for other operations
 const splitLink = split(
   ({ query }) => {
     const definition = getMainDefinition(query);
@@ -26,27 +33,25 @@ const splitLink = split(
     );
   },
   wsLink,
-  httpLink
+  formDataLink
 );
 
+// Initialize Apollo Client
 const client = new ApolloClient({
-    link: splitLink,
-    cache: new InMemoryCache(),
-    devtools: {
-      enabled: true
-    }
+  link: splitLink,
+  cache: new InMemoryCache(),
 });
 
-export const Wrapper = ({component}: {component: React.ReactNode}) => {
-    return <ApolloProvider client={client}>
-        {component}
-    </ApolloProvider>
-}
+// Wrapper for ApolloProvider
+export const Wrapper = ({ component }: { component: React.ReactNode }) => {
+  return <ApolloProvider client={client}>{component}</ApolloProvider>;
+};
 
+// OnLoad handler to render the app
 export const makeOnLoad = (c: React.ReactElement) => () => {
-    const app = document.getElementById('app');
-    if (app) {
-        const root = createRoot(app);
-        root.render(<Wrapper component={c}/>);
-    }
-}
+  const app = document.getElementById('app');
+  if (app) {
+    const root = createRoot(app);
+    root.render(<Wrapper component={c} />);
+  }
+};

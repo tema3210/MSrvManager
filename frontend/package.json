@@ -10,8 +10,13 @@
     "@testing-library/jest-dom": "^5.17.0",
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
+    "apollo-upload-client": "^18.0.1",
+    "graphql": "^16.9.0",
+    "graphql-tag": "^2.12.6",
+    "object-path": "^0.11.8",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "recursive-iterator": "^3.3.0",
     "styled-components": "^6.1.13",
     "subscriptions-transport-ws": "^0.11.0",
     "web-vitals": "^2.1.4"

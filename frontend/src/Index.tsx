@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { ChangeEventHandler, useEffect, useState } from "react";
 import { makeOnLoad } from "./lib";
 
 import { gql, useMutation, useSubscription, useQuery } from "@apollo/client";
@@ -19,40 +19,46 @@ const Index = ({}) => {
         }
     `);
 
-    const [file,setFile] = useState<any>(null);
-
-    useEffect(() => console.log("file:",file),[file]);
+    const [vars,setVars] = useState<object | null>();
 
     const [createServer] = useMutation(gql`
         mutation Mutation($file: Upload!) {
-            newServer(
+            newServer(data: {
                 name: "test",
-                cmds: {
-                    up: "echo hi",
-                    setup: "echo bye"
-                },
+                upCmd: "echo hi",
+                setupCmd: "echo bye",
                 url: "http://google.com",
                 maxMemory: 1.5,
                 port: 25565,
                 rcon: 26001,
                 instanceUpload: $file
-            )
+            })
         }
         `,
         {
-            variables: {
-                file
-            }
+            variables: vars ?? {}
         }
     );
 
     if (loading) return "Loading server list";
     if (error) return <pre>{error.message}</pre>
 
+    const onChange: ChangeEventHandler<HTMLInputElement> = (ev) => {
+        let file = ev.target.files?.[0];
+
+        if (file) {
+            setVars({
+                file
+            })
+        } else {
+            setVars(null)
+        }
+    };
+
     return <>
         <p>Hello, we have {JSON.stringify(data)}</p>
         {/* <p>{(lV)? JSON.stringify(apiV) : null}</p> */}
-        <input type="file" onChange={(ev) => setFile(ev.target.value)} /><br />
+        <input type="file" onChange={onChange} /><br />
         <button onClick={() => createServer()}>test create server (with file)</button>
     </>
 }

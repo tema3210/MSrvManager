@@ -24,34 +24,41 @@ pub struct InstanceCommands {
 
 pub struct Mutation;
 
+
+#[derive(async_graphql::InputObject)]
+pub struct NewServer {
+    name: String,
+    up_cmd: String,
+    setup_cmd: Option<String>,
+    url: url::Url,
+    max_memory: f64,
+    port: u16,
+    rcon: u16,
+    instance_upload: Upload
+}
+
 #[Object]
 impl Mutation {
 
     async fn new_server<'cx>(
         &self,
         ctx: &Context<'cx>,
-        name: String,
-        cmds: InstanceCommands,
-        url: url::Url,
-        max_memory: f64,
-        port: u16,
-        rcon: u16,
-        instance_upload: Upload
+        data: NewServer
     ) -> Result<bool,anyhow::Error> {
         let service = ctx.data_unchecked::<native::Service>();
 
-        log::info!("got the value: {:?}",&instance_upload);
+        log::info!("got the value: {:?}",&data.instance_upload);
 
-        let val = instance_upload.value(ctx)?;
+        let val = data.instance_upload.value(ctx)?;
         
         service.send(messages::NewServer {
-            name,
-            up_cmd: cmds.up,
-            setup_cmd: cmds.setup,
-            url,
-            max_memory,
-            port,
-            rcon,
+            name: data.name,
+            up_cmd: data.up_cmd,
+            setup_cmd: data.setup_cmd,
+            url: data.url,
+            max_memory: data.max_memory,
+            port: data.port,
+            rcon: data.rcon,
             instance_upload: val
         }).await??;
 
