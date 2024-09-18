@@ -26,7 +26,6 @@ const Index = ({}) => {
             newServer(data: {
                 name: "test",
                 upCmd: "echo hi",
-                setupCmd: "echo bye",
                 url: "http://google.com",
                 maxMemory: 1.5,
                 port: 25565,

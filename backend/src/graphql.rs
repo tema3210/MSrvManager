@@ -47,8 +47,6 @@ impl Mutation {
     ) -> Result<bool,anyhow::Error> {
         let service = ctx.data_unchecked::<native::Service>();
 
-        log::info!("got the value: {:?}",&data.instance_upload);
-
         let val = data.instance_upload.value(ctx)?;
         
         service.send(messages::NewServer {

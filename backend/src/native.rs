@@ -251,18 +251,22 @@ impl Handler<messages::NewServer> for Servers {
 
                 for i in 0..archive.len() {
                     let mut archive_file = archive.by_index(i)?;
+
                     let outpath = match archive_file.enclosed_name() {
                         Some(path) => (&*output_dir).join(path),
                         None => continue,
                     };
-            
+
                     // Create directories if necessary
                     if archive_file.is_dir() {
-                        std::fs::create_dir_all(&outpath)?;
+                        log::trace!("creating dir {:?}",&*outpath);
+                        let _ = std::fs::create_dir_all(&outpath)?;
                     } else {
                         if let Some(p) = outpath.parent() {
-                            std::fs::create_dir_all(p)?;
+                            log::trace!("create dir all at {:?} for {:?}",p, &outpath);
+                            let _ = std::fs::create_dir_all(p)?;
                         }
+                        log::trace!("making {:?}",&*outpath);
                         let mut outfile = File::create(&outpath)?;
                         copy(&mut archive_file, &mut outfile)?;
                     }
