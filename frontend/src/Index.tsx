@@ -1,21 +1,46 @@
-import { ChangeEventHandler, useEffect, useState } from "react";
+import { ChangeEventHandler, useState } from "react";
 import { makeOnLoad } from "./lib";
+import { InstanceDescriptor } from "./model";
+import InstanceDisplay from "./components/InstanceDesc";
 
 import { gql, useMutation, useSubscription, useQuery } from "@apollo/client";
+import styled from "styled-components";
+
+const InstanceWrapper = styled.div`
+    margin-left: 2rem;
+    width: calc(100% - 2rem);
+`;
+
+const TextBig = styled.div`
+    font-size: 2rem;
+    color: #db9f30;
+    margin-left: 2rem;
+    width: calc(100% - 2rem);
+`;
+
+const Footer = styled.div`
+    position: absolute;
+    bottom: 0;
+    height: 3rem;
+`;
 
 const Index = ({}) => {
-
-    // const {data: apiV, loading: lV} = useQuery(gql`
-    //     apiVersion
-    // `);
-
-    const { data, loading, error } = useSubscription(gql`
+    const { data, loading, error } = useSubscription<{servers: InstanceDescriptor[]}>(gql`
         subscription {
             servers {
                 name,
                 memory,
-                maxMemory
+                state,
+                maxMemory,
+                mods,
+                port
             }
+        }
+    `);
+
+    const { data: AVdata, loading: AVloading } = useQuery(gql`
+        {
+            appVersion
         }
     `);
 
@@ -55,10 +80,13 @@ const Index = ({}) => {
     };
 
     return <>
-        <p>Hello, we have {JSON.stringify(data)}</p>
-        {/* <p>{(lV)? JSON.stringify(apiV) : null}</p> */}
+        <TextBig>We have these servers:</TextBig>
+        <InstanceWrapper>
+            {(data?.servers ?? []).map((v) => (<InstanceDisplay instance={v} key={v.name}/>))}
+        </InstanceWrapper>
         <input type="file" onChange={onChange} /><br />
         <button onClick={() => createServer()}>test create server (with file)</button>
+        <Footer><TextBig>Version: {(AVloading)? AVdata.appVersion : "-"}</TextBig></Footer>
     </>
 }
 

@@ -10,8 +10,8 @@ pub struct Query;
 
 #[Object]
 impl Query {
-    async fn api_version(&self) -> &'static str {
-        "0.6"
+    async fn app_version(&self) -> &'static str {
+        "0.7"
     }
 }
 
