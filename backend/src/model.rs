@@ -21,6 +21,8 @@ pub struct InstanceDescriptor {
     // in GB
     pub max_memory: f64,
     pub port: u16,
+    #[serde(skip_serializing)]
+    #[graphql(skip)]
     pub rcon: u16,
 }
 

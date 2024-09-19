@@ -133,15 +133,18 @@ impl Actor for Servers {
 
 pub type Service = actix::Addr<Servers>;
 
-impl Handler<messages::Instances> for Servers {
-    type Result = MessageResult<messages::Instances>;
+impl<O,F> Handler<messages::Instances<O,F>> for Servers
+    where F: Send + Fn(&model::InstanceDescriptor) -> O,
+          O: Send + 'static
+{
+    type Result = Vec<O>;
 
-    fn handle(&mut self, _: messages::Instances, _: &mut Context<Self>) -> Self::Result {
-        MessageResult(self.servers.values()
+    fn handle(&mut self, m: messages::Instances<O,F>, _: &mut Context<Self>) -> Self::Result {
+        self.servers.values()
             .map(|i| &i.desc)
-            .cloned()
+            .map(m.f)
             .collect()
-        )
+        
     }
 }
 

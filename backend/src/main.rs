@@ -66,6 +66,15 @@ async fn index() -> impl Responder {
     }
 }
 
+#[get("/create")]
+async fn create() -> impl Responder {
+    Page {
+        chunk: "create.js",
+        title: "Create server",
+        content: ""
+    }
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     dotenv::dotenv().ok();
@@ -99,6 +108,7 @@ async fn main() -> std::io::Result<()> {
         )
         .service(graphql_e)
         .service(index)
+        .service(create)
         .service(graphiql)
         
         

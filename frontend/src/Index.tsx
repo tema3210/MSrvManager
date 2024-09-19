@@ -25,6 +25,13 @@ const Footer = styled.div`
 `;
 
 const Index = ({}) => {
+
+    const { data: AVdata, loading: AVloading } = useQuery(gql`
+        query {
+            appVersion
+        }
+    `);
+
     const { data, loading, error } = useSubscription<{servers: InstanceDescriptor[]}>(gql`
         subscription {
             servers {
@@ -38,55 +45,34 @@ const Index = ({}) => {
         }
     `);
 
-    const { data: AVdata, loading: AVloading } = useQuery(gql`
-        {
-            appVersion
-        }
-    `);
+    
 
-    const [vars,setVars] = useState<object | null>();
-
-    const [createServer] = useMutation(gql`
-        mutation Mutation($file: Upload!) {
-            newServer(data: {
-                name: "test",
-                upCmd: "echo hi",
-                url: "http://google.com",
-                maxMemory: 1.5,
-                port: 25565,
-                rcon: 26001,
-                instanceUpload: $file
-            })
-        }
-        `,
-        {
-            variables: vars ?? {}
-        }
-    );
+    const [selected,setSelected] = useState<InstanceDescriptor | null>(null);
 
     if (loading) return "Loading server list";
     if (error) return <pre>{error.message}</pre>
 
-    const onChange: ChangeEventHandler<HTMLInputElement> = (ev) => {
-        let file = ev.target.files?.[0];
-
-        if (file) {
-            setVars({
-                file
-            })
-        } else {
-            setVars(null)
-        }
-    };
-
+    //TODO: make a table.
     return <>
         <TextBig>We have these servers:</TextBig>
         <InstanceWrapper>
-            {(data?.servers ?? []).map((v) => (<InstanceDisplay instance={v} key={v.name}/>))}
+            {(data?.servers ?? [])
+                .map((v) => (
+                    <InstanceDisplay 
+                        instance={v} 
+                        key={v.name} 
+                        selected={selected?.name === v.name}
+                        setSelected={
+                            (selected?.name === v.name)
+                                ? () => setSelected(null) 
+                                : () => setSelected(v)
+                        }
+                    />
+                ))
+            }
         </InstanceWrapper>
-        <input type="file" onChange={onChange} /><br />
-        <button onClick={() => createServer()}>test create server (with file)</button>
-        <Footer><TextBig>Version: {(AVloading)? AVdata.appVersion : "-"}</TextBig></Footer>
+        <p>SELECTED: {JSON.stringify(selected)}</p>
+        <Footer><TextBig>Version: {(AVloading)? "-" : AVdata.appVersion }</TextBig></Footer>
     </>
 }
 

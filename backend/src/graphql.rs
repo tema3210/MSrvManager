@@ -13,6 +13,22 @@ impl Query {
     async fn app_version(&self) -> &'static str {
         "0.7"
     }
+
+    async fn rcons<'cx>(&self, ctx: &Context<'cx>) -> Vec<serde_json::Value> {
+        let service = ctx.data_unchecked::<native::Service>();
+        match service.send(messages::Instances {
+            f: |i| serde_json::json!({
+                "name": i.name,
+                "rcon": i.rcon
+            }),
+        }).await {
+            Ok(v) => {
+                v
+            },
+            Err(_) => vec![]
+        }
+
+    }
 }
 
 #[derive(InputObject)]
@@ -132,7 +148,9 @@ impl Subscription {
             //we send heartbeat - can be put out of sync
             service.do_send(messages::Tick);
             //then we ask for the data
-            match service.send(messages::Instances).await {
+            match service.send(messages::Instances {
+                f: |i| i.clone()
+            }).await {
                 Ok(data) => data,
                 Err(e) => {
                     log::error!("cannot get instance list: {}",e);

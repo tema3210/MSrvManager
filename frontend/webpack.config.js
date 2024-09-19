@@ -14,7 +14,12 @@ module.exports = {
     index: {
       dependOn: 'shared',
       import: './src/Index.tsx',
+    },
+    create: {
+      dependOn: 'shared',
+      import: './src/Create.tsx',
     }
+
   },
   output: {
     path: path.resolve(__dirname, '../static'),

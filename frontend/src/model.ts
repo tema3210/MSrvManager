@@ -9,7 +9,7 @@ export type InstanceDescriptor = {
     mods: string,
     state: ServerState,
 
-    memory: number,
+    memory: number | null,
     maxMemory: number,
     port: number
 }

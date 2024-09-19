@@ -7,8 +7,10 @@ use crate::*;
 
 /// Define message
 #[derive(Message,Debug)]
-#[rtype(result = "Vec<model::InstanceDescriptor>")]
-pub struct Instances;
+#[rtype(result = "Vec<O>")]
+pub struct Instances<O: Send + 'static,F: Send + Fn(&model::InstanceDescriptor) -> O>{
+    pub f: F
+}
 
 #[derive(Message)]
 #[rtype(result = "anyhow::Result<()>")]
