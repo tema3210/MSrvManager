@@ -2,46 +2,50 @@ import { useMutation } from "@apollo/client";
 import gql from "graphql-tag";
 import { ChangeEventHandler, useState } from "react";
 import { makeOnLoad } from "./lib";
-import { InstanceDescriptor } from "./model";
+import { useForm } from "react-hook-form";
+
+type NewServerReq = {
+    name: string,
+    upCmd: string,
+    setupCmd: string | null,
+    url: string,
+    maxMemory: number,
+    port: number,
+    rcon: number,
+    instanceUpload: File
+}
 
 const CreatePage = () => {
 
-    const [vars,setVars] = useState<object | null>();
+    const form = useForm<NewServerReq>();
 
-    const [createServer] = useMutation(gql`
-        mutation Mutation($file: Upload!) {
-            newServer(data: {
-                name: "test big",
-                upCmd: "echo hi",
-                url: "http://google.com",
-                maxMemory: 1.5,
-                port: 25566,
-                rcon: 26002,
-                instanceUpload: $file
-            })
+    const [createServer, {data,loading,error}] = useMutation<NewServerReq>(gql`
+        mutation Mutation($data: NewServer!) {
+            newServer(data: $data)
         }
-        `,
-        {
-            variables: vars ?? {}
-        }
-    );
+    `);
 
-    const onChange: ChangeEventHandler<HTMLInputElement> = (ev) => {
-        let file = ev.target.files?.[0];
-
-        if (file) {
-            setVars({
-                file
-            })
-        } else {
-            setVars(null)
-        }
+    const onSubmit = (formData: NewServerReq) => {
+        createServer({ variables: { data: formData } });
     };
 
     return <>
         Create server page
-        <input type="file" onChange={onChange} /><br /> 
-        <button onClick={() => createServer()}>test create server (with file)</button>
+        <form onSubmit={form.handleSubmit(onSubmit)}>
+            <input type="text" {...form.register("name")} placeholder="server name" /><br />
+            <input type="text" {...form.register("upCmd")} placeholder="command by which it can be launched" /><br />
+            <input type="text" {...form.register("setupCmd")} placeholder="command run once at the root of archive" /><br />
+            <input type="text" {...form.register("url")} placeholder="url to mod list" /><br />
+            <input type="number" {...form.register("maxMemory")} placeholder="maximum allowed memory consumption" /><br />
+            <input type="number" {...form.register("port")} placeholder="server port" /><br />
+            <input type="number" {...form.register("rcon")} placeholder="server rcon" /><br />
+            <label>Archive with server instance</label>
+            <input type="file" {...form.register("instanceUpload")} /><br /> 
+            <button type="submit" disabled={loading} >test create server (with file)</button>
+        </form>
+        {data && <p>Server created successfully!</p>}
+        {error && <p>Error creating server: {error.message}</p>}
+        
     </>
 }
 

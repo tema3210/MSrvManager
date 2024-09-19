@@ -5,7 +5,7 @@ module.exports = {
   mode: "production",
   entry: {
     'shared': {
-      import: ['react','react-dom','./src/lib.tsx']
+      import: ['react','react-dom','@apollo/client','styled-components']
     },
     components: {
       dependOn: 'shared',
