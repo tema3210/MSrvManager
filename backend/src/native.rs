@@ -2,7 +2,7 @@ use std::{collections::HashMap, fs::File, io::{copy, Write}, ops::Range, path::{
 use zip::ZipArchive;
 
 use anyhow::anyhow;
-use instance::Instance;
+use instance::{Instance, InstanceState};
 
 use crate::*;
 
@@ -301,6 +301,28 @@ impl Handler<messages::NewServer> for Servers {
     }
 }
 
+impl Handler<messages::SwitchServer> for Servers {
+    type Result = anyhow::Result<()>;
+    
+    //todo: consider current instance state
+    fn handle(&mut self, msg: messages::SwitchServer, ctx: &mut Self::Context) -> Self::Result {
+        let path = self.name_to_path(msg.name);
+
+        match self.servers.get_mut((&*path).into()) {
+            Some(instance) => {
+                if msg.should_run { //&& matches!(instance.instance_state)
+                    instance.start();
+                } else {
+                    instance.stop_async(ctx.address());
+                };
+                Ok(())
+            },
+            None => Err(anyhow!("cannot switch unexisting server")),
+        }
+    }
+
+}
+
 impl Handler<messages::AlterServer> for Servers {
     type Result = anyhow::Result<()>;
 
@@ -329,15 +351,7 @@ impl Handler<messages::AlterServer> for Servers {
                             Err(_) => return Err(anyhow!("cannot change port to blacklisted")),
                         }
                         instance.desc.rcon = port;
-                    },
-                    model::ServerChange::Run(should_run) => {
-                        if should_run {
-                            instance.start();
-                        } else {
-                            instance.stop_async(cx.address());
-                        }
-                        return Ok(())
-                    },
+                    }
                 };
                 instance.flush();
                 Ok(())

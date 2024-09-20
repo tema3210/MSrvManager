@@ -31,6 +31,12 @@ pub struct DeleteServer {
     pub name: String
 }
 
+#[derive(Message,Debug)]
+#[rtype(result = "anyhow::Result<()>")]
+pub struct SwitchServer {
+    pub name: String,
+    pub should_run: bool
+}
 
 #[derive(Message,Debug)]
 #[rtype(result = "anyhow::Result<()>")]

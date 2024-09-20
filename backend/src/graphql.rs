@@ -56,6 +56,20 @@ pub struct NewServer {
 #[Object]
 impl Mutation {
 
+    async fn should_run<'cx>(&self,
+        ctx: &Context<'cx>,
+        name: String,
+        should_run: bool
+    ) -> Result<bool,anyhow::Error> {
+        let service = ctx.data_unchecked::<native::Service>();
+
+        service.send(messages::SwitchServer {
+            name,
+            should_run
+        }).await??;
+        Ok(true)
+    }
+
     async fn new_server<'cx>(
         &self,
         ctx: &Context<'cx>,
@@ -85,7 +99,6 @@ impl Mutation {
         ctx: &Context<'cx>,
         name: String,
         max_memory: Option<f64>,
-        run: Option<bool>,
         port: Option<u16>,
         rcon: Option<u16>
     ) -> Result<String,anyhow::Error> {
@@ -95,12 +108,6 @@ impl Mutation {
             service.send(messages::AlterServer {
                 name: name.clone(),
                 change: model::ServerChange::MaxMemory(memory)
-            }).await??;
-        }
-        if let Some(should_run) = run {
-            service.send(messages::AlterServer {
-                name: name.clone(),
-                change: model::ServerChange::Run(should_run)
             }).await??;
         }
 

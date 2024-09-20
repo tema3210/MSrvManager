@@ -39,6 +39,5 @@ impl InstanceDescriptor {
 pub enum ServerChange {
     MaxMemory(f64),
     Port(u16),
-    Rcon(u16),
-    Run(bool)
+    Rcon(u16)
 }
