@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { makeOnLoad } from "./lib";
+import { makeOnLoad, SSRProps } from "./lib";
 import { InstanceDescriptor } from "./model";
 import InstanceDisplay from "./components/InstanceDesc";
 import InstanceActions from "./components/InstanceActions";
@@ -33,7 +33,7 @@ const Footer = styled.div`
     height: 3rem;
 `;
 
-const Index = ({}) => {
+const Index = ({}: SSRProps) => {
 
     const { data: AVdata, loading: AVloading } = useQuery(gql`
         query {
@@ -70,7 +70,7 @@ const Index = ({}) => {
                 .map((v) => (
                     <InstanceDisplay
                         key={v.name}
-                        instance={v} 
+                        instance={v}
                         selected={selected?.name === v.name}
                         setSelected={
                             (selected?.name === v.name)
@@ -93,4 +93,4 @@ const Index = ({}) => {
     </Wrapper>
 }
 
-window.onload = makeOnLoad(<Index />)
+window.onload = makeOnLoad(Index)

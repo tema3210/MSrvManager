@@ -1,8 +1,9 @@
 import { useMutation } from "@apollo/client";
 import gql from "graphql-tag";
 import { ChangeEventHandler, useState } from "react";
-import { makeOnLoad } from "./lib";
+import { makeOnLoad, SSRProps } from "./lib";
 import { useForm } from "react-hook-form";
+import styled from "styled-components";
 
 type NewServerReq = {
     name: string,
@@ -15,7 +16,11 @@ type NewServerReq = {
     instanceUpload: File
 }
 
-const CreatePage = () => {
+const SInput = styled.input`
+    
+`;
+
+const CreatePage = ({}: SSRProps) => {
 
     const form = useForm<NewServerReq>();
 
@@ -32,15 +37,15 @@ const CreatePage = () => {
     return <>
         Create server page
         <form onSubmit={form.handleSubmit(onSubmit)}>
-            <input type="text" {...form.register("name")} placeholder="server name" /><br />
-            <input type="text" {...form.register("upCmd")} placeholder="command by which it can be launched" /><br />
-            <input type="text" {...form.register("setupCmd")} placeholder="command run once at the root of archive" /><br />
-            <input type="text" {...form.register("url")} placeholder="url to mod list" /><br />
-            <input type="number" {...form.register("maxMemory")} placeholder="maximum allowed memory consumption" /><br />
-            <input type="number" {...form.register("port")} placeholder="server port" /><br />
-            <input type="number" {...form.register("rcon")} placeholder="server rcon" /><br />
+            <SInput type="text" {...form.register("name")} placeholder="server name" /><br />
+            <SInput type="text" {...form.register("upCmd")} placeholder="command by which it can be launched" /><br />
+            <SInput type="text" {...form.register("setupCmd")} placeholder="command run once at the root of archive" /><br />
+            <SInput type="text" {...form.register("url")} placeholder="url to mod list" /><br />
+            <SInput type="number" {...form.register("maxMemory")} placeholder="maximum allowed memory consumption" /><br />
+            <SInput type="number" {...form.register("port")} placeholder="server port" /><br />
+            <SInput type="number" {...form.register("rcon")} placeholder="server rcon" /><br />
             <label>Archive with server instance (max 500 MB)</label>
-            <input type="file" {...form.register("instanceUpload")} /><br /> 
+            <SInput type="file" {...form.register("instanceUpload")} /><br /> 
             <button type="submit" disabled={loading} >test create server (with file)</button>
         </form>
         {data && <p>Server created successfully!</p>}
@@ -49,4 +54,4 @@ const CreatePage = () => {
     </>
 }
 
-window.onload = makeOnLoad(<CreatePage />)
+window.onload = makeOnLoad(CreatePage)

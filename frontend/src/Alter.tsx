@@ -1,9 +1,8 @@
-import { makeOnLoad } from "./lib";
+import { makeOnLoad, SSRProps } from "./lib";
 
-const Alter = () => {
-    let pageProps = window.pageData;
+const Alter = ({pageData}: SSRProps) => {
 
-    return <p>ALTER {pageProps.name}</p>
+    return <p>ALTER {pageData.name}</p>
 }
 
-window.onload = makeOnLoad(<Alter />)
+window.onload = makeOnLoad(Alter)
