@@ -18,6 +18,10 @@ module.exports = {
     create: {
       dependOn: 'shared',
       import: './src/Create.tsx',
+    },
+    alter: {
+      dependOn: 'shared',
+      import: './src/Alter.tsx',
     }
 
   },

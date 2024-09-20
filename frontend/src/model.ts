@@ -1,8 +1,4 @@
-export enum ServerState {
-    "RUNNING",
-    "STOPPED",
-    "CRASHED"
-}
+export type ServerState = "RUNNING" | "STOPPED" | "CRASHED"
 
 export type InstanceDescriptor = {
     name: string,

@@ -59,7 +59,6 @@ const Index = ({}) => {
     if (loading) return "Loading server list";
     if (error) return <pre>{error.message}</pre>
 
-    //TODO: make a table.
     const createOnClick = () => {
         window.location.href = '/create';
     };

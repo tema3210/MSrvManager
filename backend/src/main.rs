@@ -16,10 +16,10 @@ pub mod instance;
 
 #[derive(askama::Template)]
 #[template(path = "page.html")]
-struct Page<C: Display,T: Display, S: Display> {
+struct Page<C: Display,T: Display> {
     chunk: C,
     title: T,
-    content: S
+    content: serde_json::Value
 }
 
 #[derive(askama::Template)]
@@ -62,7 +62,7 @@ async fn index() -> impl Responder {
     Page {
         chunk: "index.js",
         title: "Servers",
-        content: ""
+        content: serde_json::json!({})
     }
 }
 
@@ -71,7 +71,23 @@ async fn create() -> impl Responder {
     Page {
         chunk: "create.js",
         title: "Create server",
-        content: ""
+        content: serde_json::json!({})
+    }
+}
+
+#[derive(serde::Deserialize)]
+struct AlterParams {
+    name: String,
+}
+
+#[get("/alter")]
+async fn alter(info: web::Query<AlterParams>) -> impl Responder {
+    Page {
+        chunk: "alter.js",
+        title: format!("Alter server {}",&info.name),
+        content: serde_json::json!({
+            "name": info.name
+        })
     }
 }
 
@@ -109,9 +125,8 @@ async fn main() -> std::io::Result<()> {
         .service(graphql_e)
         .service(index)
         .service(create)
+        .service(alter)
         .service(graphiql)
-        
-        
         
     };
 

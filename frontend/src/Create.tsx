@@ -39,7 +39,7 @@ const CreatePage = () => {
             <input type="number" {...form.register("maxMemory")} placeholder="maximum allowed memory consumption" /><br />
             <input type="number" {...form.register("port")} placeholder="server port" /><br />
             <input type="number" {...form.register("rcon")} placeholder="server rcon" /><br />
-            <label>Archive with server instance</label>
+            <label>Archive with server instance (max 500 MB)</label>
             <input type="file" {...form.register("instanceUpload")} /><br /> 
             <button type="submit" disabled={loading} >test create server (with file)</button>
         </form>

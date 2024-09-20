@@ -29,7 +29,6 @@ bit-set = "0.8.0"
 actix = "0.13.5"
 tokio = { version = "1.40.0", features = ["time"] }
 procfs = { version = "0.16.0", default-features = false }
-# reqwest = { version = "0.12", features = ["blocking"] }
 zip = { version = "2.2.0", default-features = false, features = ["deflate","deflate64","zstd","aes-crypto"] }
 openssl = { version = "0.10.66", features = ["vendored"] }
 bytes = "1.7.1"

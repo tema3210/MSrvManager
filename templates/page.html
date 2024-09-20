@@ -8,6 +8,10 @@
   <script src="/static/{{chunk}}"></script>
 {% endblock %}
 
-{% block content %}
-  {{content}}
+{% block pageData %}
+  <script>
+    window.pageData = JSON.parse(
+      '{{ content|safe }}'
+    );
+  </script>
 {% endblock %}

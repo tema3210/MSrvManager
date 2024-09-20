@@ -1,6 +1,7 @@
 import styled from "styled-components";
 import {InstanceDescriptor} from "../model";
 import Btn from "./Button"
+import { gql, useMutation } from "@apollo/client";
 
 
 type Props = {
@@ -10,10 +11,42 @@ type Props = {
 const InstanceActions = ({instance}: Props) => {
     const {name,state} = instance;
 
+    const [remove] = useMutation(gql`
+        mutation Mutation($name: String!) {
+            deleteServer(name: $name)
+        }
+    `);
+
+    const [ctl] = useMutation(gql`
+        mutation Mutation($name: String!,$shouldRun: Boolean!) {
+            shouldRun(name: $name,shouldRun: $shouldRun)
+        }
+    `);
+
+    const onClickDelete = () => remove({
+        variables: {
+            name
+        }
+    });
+
+    const switchServer = (shouldRun: boolean) => () => ctl({
+        variables: {
+            name,
+            shouldRun
+        }
+    });
+
+    const alterOnClick = () => {
+        window.location.href = `/alter?name=${name}`;
+    };
+
     return <div>
-        <Btn>Delete</Btn><br />
-        <Btn>Start/Stop</Btn><br />
-        <Btn></Btn><br />
+        <Btn onClick={onClickDelete}>Delete</Btn><br />
+        {(state == "RUNNING")
+            ? <Btn onClick={switchServer(false)}>Stop</Btn> 
+            : <Btn onClick={switchServer(true)}>Start</Btn>
+        }
+        <Btn onClick={alterOnClick}>Alter</Btn><br />
     </div>
 }
 
