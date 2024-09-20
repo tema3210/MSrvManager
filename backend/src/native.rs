@@ -38,6 +38,12 @@ impl Indices {
 
         Err(anyhow!("already freed"))
     }
+
+    /// iterate over taken ports
+    pub fn taken(&self) -> Vec<u16> {
+        self.1.iter().map(|p| p.try_into().expect("have port larger than it should be")).collect()
+    }
+
 }
 
 pub struct Servers {
@@ -132,6 +138,23 @@ impl Actor for Servers {
 }
 
 pub type Service = actix::Addr<Servers>;
+
+impl Handler<messages::Ports> for Servers {
+    type Result = MessageResult<messages::Ports>;
+    
+    fn handle(&mut self, _: messages::Ports, _: &mut Self::Context) -> Self::Result {
+        let pr = &self.port_range.0;
+        let rr = &self.rcon_range.0;
+        MessageResult(
+            messages::PortsInfo {
+                ports: self.port_range.taken(),
+                rcons: self.rcon_range.taken(),
+                port_limits: [pr.start,pr.end],
+                rcon_limits: [rr.start,rr.end],
+            }
+        )
+    }
+}
 
 impl<O,F> Handler<messages::Instances<O,F>> for Servers
     where F: Send + Fn(&model::InstanceDescriptor) -> O,

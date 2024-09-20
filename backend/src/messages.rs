@@ -1,16 +1,28 @@
 use std::path::Path;
 
 use actix::Message;
-use async_graphql::UploadValue;
+use async_graphql::{SimpleObject, UploadValue};
 
 use crate::*;
 
-/// Define message
+
 #[derive(Message,Debug)]
 #[rtype(result = "Vec<O>")]
 pub struct Instances<O: Send + 'static,F: Send + Fn(&model::InstanceDescriptor) -> O>{
     pub f: F
 }
+
+#[derive(SimpleObject)]
+pub struct PortsInfo {
+    pub ports: Vec<u16>,
+    pub rcons: Vec<u16>,
+    pub port_limits: [u16;2],
+    pub rcon_limits: [u16;2]
+}
+
+#[derive(Message,Debug)]
+#[rtype(result = "PortsInfo")]
+pub struct Ports;
 
 #[derive(Message)]
 #[rtype(result = "anyhow::Result<()>")]

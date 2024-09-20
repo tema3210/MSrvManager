@@ -7,6 +7,7 @@ import Btn from "./components/Button";
 
 import { gql, useSubscription, useQuery } from "@apollo/client";
 import styled from "styled-components";
+import { TextBig } from "./components/UIComps";
 
 const Wrapper = styled.div`
     display: flex;
@@ -18,13 +19,6 @@ const InstanceWrapper = styled.div`
     margin-left: 1rem;
     margin-right: 1rem;
     width: calc(45% - 2rem);
-`;
-
-const TextBig = styled.div`
-    font-size: 2rem;
-    color: #db9f30;
-    /* margin-left: 2rem; */
-    /* width: calc(100% - 2rem); */
 `;
 
 const Footer = styled.div`

@@ -9,3 +9,12 @@ export type InstanceDescriptor = {
     maxMemory: number,
     port: number
 }
+
+export type PortsInfo = {
+    portsTaken: {
+        ports: number[],
+        rcons: number[],
+        port_limits: [number,number],
+        rcon_limits: [number,number]
+    }
+}

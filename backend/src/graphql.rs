@@ -14,6 +14,11 @@ impl Query {
         "0.7"
     }
 
+    async fn ports_taken<'cx>(&self, ctx: &Context<'cx>) -> anyhow::Result<messages::PortsInfo> {
+        let service = ctx.data_unchecked::<native::Service>();
+        Ok(service.send(messages::Ports).await?)
+    }
+
     async fn rcons<'cx>(&self, ctx: &Context<'cx>) -> Vec<serde_json::Value> {
         let service = ctx.data_unchecked::<native::Service>();
         match service.send(messages::Instances {
