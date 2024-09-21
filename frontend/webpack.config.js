@@ -5,7 +5,7 @@ module.exports = {
   mode: "production",
   entry: {
     'shared': {
-      import: ['react','react-dom','@apollo/client','styled-components']
+      import: ['react','react-dom','@apollo/client','styled-components','react-hook-form']
     },
     components: {
       dependOn: 'shared',

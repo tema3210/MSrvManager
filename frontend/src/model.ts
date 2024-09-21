@@ -14,7 +14,7 @@ export type PortsInfo = {
     portsTaken: {
         ports: number[],
         rcons: number[],
-        port_limits: [number,number],
-        rcon_limits: [number,number]
+        portLimits: [number,number],
+        rconLimits: [number,number]
     }
 }

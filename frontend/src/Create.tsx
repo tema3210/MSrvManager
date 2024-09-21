@@ -1,11 +1,13 @@
 import { useMutation, useQuery } from "@apollo/client";
 import gql from "graphql-tag";
-import { ChangeEventHandler, useState } from "react";
+import { ajvResolver } from '@hookform/resolvers/ajv';
 import { makeOnLoad, SSRProps } from "./lib";
 import { useForm } from "react-hook-form";
 import styled from "styled-components";
-import { TextBig } from "./components/UIComps";
+import { ErrorP, NumberInput, SInput, TextBig } from "./components/UIComps";
 import { PortsInfo } from "./model";
+import { useMemo } from "react";
+import { fullFormats } from "ajv-formats/dist/formats";
 
 type NewServerReq = {
     name: string,
@@ -18,16 +20,11 @@ type NewServerReq = {
     instanceUpload: File
 }
 
-type FormData = Record<keyof NewServerReq,any>;
+type FormData = Record<keyof NewServerReq, string | number | null>;
 
-const SInput = styled.input`
-    margin-bottom: 0.5rem;
-    width: 17rem;
-`;
+const DisplayRange = ({range}:{range: [number,number]}) => (<>, allowed: ({range[0]};{range[1]})</>)
 
 const CreatePage = ({}: SSRProps) => {
-
-    const form = useForm<FormData>();
 
     const { data: ports, loading: pLoading } = useQuery<PortsInfo>(gql`
         {
@@ -40,7 +37,53 @@ const CreatePage = ({}: SSRProps) => {
         }
     `);
 
-    console.log("got ports:",ports, pLoading);
+    const schema = useMemo(() => {
+        return {
+            type: "object",
+            properties: {
+              name: { "type": "string" },
+              upCmd: { "type": "string" },
+              setupCmd: { 
+                type: ["string", "null"]
+              },
+              url: { type: "string", format: "uri" },
+              maxMemory: { 
+                type: "number",
+                format: "float",
+                minimum: 1.0 
+              },
+              port: { 
+                type: "number", 
+                minimum: ports?.portsTaken.portLimits[0] ?? 1, 
+                maximum: ports?.portsTaken.portLimits[1] ?? 65535 
+              },
+              rcon: { 
+                type: "number", 
+                minimum: ports?.portsTaken.rconLimits[0] ?? 1, 
+                maximum: ports?.portsTaken.rconLimits[1] ?? 65535  
+              }
+            },
+            required: ["name", "upCmd", "url", "maxMemory", "port", "rcon"]
+          }
+    },[ports]);
+
+    const {
+        register,
+        control,
+        handleSubmit,
+        formState: { errors }
+      } = useForm<FormData>({
+        resolver: ajvResolver(schema as any, {
+            formats: fullFormats
+        }),
+        defaultValues: {
+          name: "",
+          upCmd: "",
+          setupCmd: null,
+          url: "",
+          instanceUpload: null
+        }
+      });
 
     const [createServer, {data,loading: csLoading,error}] = useMutation<boolean>(gql`
         mutation Mutation($data: NewServer!) {
@@ -48,33 +91,43 @@ const CreatePage = ({}: SSRProps) => {
         }
     `);
 
-    const onSubmit = (formData: FormData) => {
+    const onSubmit = (formData: any) => {
 
         console.log("formData:",formData);
 
-        let data: NewServerReq = {
-            ...formData,
-            maxMemory: parseFloat(formData.maxMemory),
-            port: parseInt(formData.maxMemory),
-            rcon: parseInt(formData.maxMemory),
-            instanceUpload: formData.instanceUpload[0] ?? null
-        }
-
-        createServer({ variables: { data } });
+        // createServer({ variables: { data } });
     };
 
     return <>
         <TextBig>Create server page:</TextBig>
-        <form onSubmit={form.handleSubmit(onSubmit)}>
-            <SInput type="text" {...form.register("name")} placeholder="server name" /><br />
-            <SInput type="text" {...form.register("upCmd")} placeholder="command by which it can be launched" /><br />
-            <SInput type="text" {...form.register("setupCmd")} placeholder="command run once at the root of archive" /><br />
-            <SInput type="text" {...form.register("url")} placeholder="url to mod list" /><br />
-            <SInput type="number" step="0.2" {...form.register("maxMemory")} placeholder="max allowed memory consumption" /><br />
-            <SInput type="number" {...form.register("port")} placeholder="server port" /><br />
-            <SInput type="number" {...form.register("rcon")} placeholder="server rcon" /><br />
+        <form onSubmit={handleSubmit(onSubmit)}>
+            <label>Name</label><br />
+            <SInput type="text" {...register("name")} placeholder="server name" /><br />
+            {errors.name && <ErrorP>{errors.name.message}</ErrorP>}
+
+            <label>Command to launch the instance</label><br />
+            <SInput type="text" {...register("upCmd")} placeholder="command by which it can be launched" /><br />
+            {errors.upCmd && <ErrorP>{errors.upCmd.message}</ErrorP>}
+
+            <label>Setup command to be run once</label><br />
+            <SInput type="text" {...register("setupCmd")} placeholder="command run once at the root of archive" /><br />
+            {errors.setupCmd && <ErrorP>{errors.setupCmd.message}</ErrorP>}
+
+            <label>Url to client modpack</label><br />
+            <SInput type="text" {...register("url")} placeholder="url to mod list" /><br />
+            {errors.url && <ErrorP>{errors.url.message}</ErrorP>}
+
+            <label>Maximum memory, in GB</label><br />
+            <NumberInput name="maxMemory" type="float" control={control} placeholder="max allowed memory consumption" /><br />
+
+            <label>Port{ports?.portsTaken.portLimits ? <DisplayRange range={ports.portsTaken.portLimits}/> : null}</label><br />
+            <NumberInput name="port" type="int" control={control} placeholder="server port" /><br />
+
+            <label>Rcon{ports?.portsTaken.rconLimits ? <DisplayRange range={ports.portsTaken.rconLimits}/> : null}</label><br />
+            <NumberInput name="rcon" type="int" control={control} placeholder="server rcon" /><br />
+
             <label>Archive with server instance (max 500 MB)</label><br /> 
-            <SInput type="file" {...form.register("instanceUpload")} /><br /> 
+            <SInput type="file" {...register("instanceUpload")} /><br /> 
             <button type="submit" disabled={csLoading || pLoading} >Create server</button>
         </form>
         {data && <p>Server created successfully!</p>}
