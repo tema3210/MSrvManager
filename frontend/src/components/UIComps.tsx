@@ -1,4 +1,4 @@
-import { ChangeEvent } from "react";
+import { ChangeEvent, useState } from "react";
 import { Control, Controller } from "react-hook-form";
 import styled from "styled-components";
 
@@ -36,25 +36,32 @@ export const NumberInput = ({name, control, type, placeholder}: NumberInputProps
                 fieldState
             }) => {
                 const onChange = (ev: ChangeEvent<HTMLInputElement>) => {
-                    let parsed = null;
-                    switch (type) {
-                        case "float":
-                            parsed = parseFloat(ev.target.value);
-                            break;
-                        case "int":
-                            parsed = parseInt(ev.target.value);
-                            break;
+                    const { value } = ev.target;
+
+                    // Check if value ends with a dot
+                    const endsWithDot = value.endsWith(".");
+
+                    let parsedValue: number | null = null;
+
+                    // Parse based on type (int or float)
+                    if (type === "float") {
+                        parsedValue = parseFloat(value);
+                    } else if (type === "int") {
+                        parsedValue = parseInt(value);
                     }
-                    if (ev.target.value === "") {
-                        return field.onChange(null)
+
+                    // Handle NaN and empty values
+                    if (!Number.isNaN(parsedValue) && value !== "") {
+                        const finalValue = endsWithDot ? value : parsedValue;
+                        field.onChange(finalValue);
+                    } else {
+                        // Handle empty input case
+                        field.onChange(null);
                     }
-                    if (parsed && !Number.isNaN(parsed) ) {
-                        return field.onChange(parsed)
-                    }
-                }
+                };
 
                 return <>
-                    <SInput value={field.value} onChange={onChange} placeholder={placeholder} />
+                    <SInput ref={field.ref} value={field.value} onChange={onChange} placeholder={placeholder} />
                     {fieldState.error && <ErrorP>{fieldState.error.message}</ErrorP>}
                 </>
         }}

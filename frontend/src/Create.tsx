@@ -3,7 +3,6 @@ import gql from "graphql-tag";
 import { ajvResolver } from '@hookform/resolvers/ajv';
 import { makeOnLoad, SSRProps } from "./lib";
 import { useForm } from "react-hook-form";
-import styled from "styled-components";
 import { ErrorP, NumberInput, SInput, TextBig } from "./components/UIComps";
 import { PortsInfo } from "./model";
 import { useMemo } from "react";
@@ -17,7 +16,7 @@ type NewServerReq = {
     maxMemory: number,
     port: number,
     rcon: number,
-    instanceUpload: File
+    instanceUpload: FileList
 }
 
 type FormData = Record<keyof NewServerReq, string | number | null>;
@@ -37,6 +36,7 @@ const CreatePage = ({}: SSRProps) => {
         }
     `);
 
+    //fix the schema
     const schema = useMemo(() => {
         return {
             type: "object",
@@ -47,12 +47,13 @@ const CreatePage = ({}: SSRProps) => {
                 type: ["string", "null"]
               },
               url: { type: "string", format: "uri" },
-              maxMemory: { 
+              // it should be a float, but schema validation doesn't support it
+              maxMemory: {
                 type: "number",
-                format: "float",
-                minimum: 1.0 
+                // format: "float",
+                // minimum: 1.0 
               },
-              port: { 
+              port: {
                 type: "number", 
                 minimum: ports?.portsTaken.portLimits[0] ?? 1, 
                 maximum: ports?.portsTaken.portLimits[1] ?? 65535 
@@ -61,7 +62,16 @@ const CreatePage = ({}: SSRProps) => {
                 type: "number", 
                 minimum: ports?.portsTaken.rconLimits[0] ?? 1, 
                 maximum: ports?.portsTaken.rconLimits[1] ?? 65535  
-              }
+              },
+              instanceUpload: { 
+                type: "array",
+                items: {
+                  type: "object"
+                },
+                maxItems: 1,
+                minItems: 1,
+              },
+
             },
             required: ["name", "upCmd", "url", "maxMemory", "port", "rcon"]
           }
@@ -91,11 +101,18 @@ const CreatePage = ({}: SSRProps) => {
         }
     `);
 
-    const onSubmit = (formData: any) => {
+    const onSubmit = (data: any) => {
 
-        console.log("formData:",formData);
+        let instanceUpload = data.instanceUpload?.[0] ?? null;
 
-        // createServer({ variables: { data } });
+        createServer({ 
+          variables: { 
+            data: {
+              ...data,
+              instanceUpload
+            } 
+          } 
+        });
     };
 
     return <>
