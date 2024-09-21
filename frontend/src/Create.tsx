@@ -19,7 +19,7 @@ type NewServerReq = {
     instanceUpload: FileList
 }
 
-type FormData = Record<keyof NewServerReq, string | number | null>;
+type FormData = Record<keyof NewServerReq, string | number | object | null>;
 
 const DisplayRange = ({range}:{range: [number,number]}) => (<>, allowed: ({range[0]};{range[1]})</>)
 
@@ -36,6 +36,22 @@ const CreatePage = ({}: SSRProps) => {
         }
     `);
 
+    const portLimits = [ports?.portsTaken.portLimits[0] ?? 1, ports?.portsTaken.portLimits[1] ?? 65535];
+    
+    const rconLimits = [ports?.portsTaken.rconLimits[0] ?? 1, ports?.portsTaken.rconLimits[1] ?? 65535];
+
+    const NumberInputData = (minimum: number,maximum: number) => ({
+      type: "object",
+      properties: {
+        value: { 
+          type: "number",
+          minimum,
+          maximum
+        },
+        displayValue: { type: "string" }
+      },
+    });
+
     //fix the schema
     const schema = useMemo(() => {
         return {
@@ -47,33 +63,20 @@ const CreatePage = ({}: SSRProps) => {
                 type: ["string", "null"]
               },
               url: { type: "string", format: "uri" },
-              // it should be a float, but schema validation doesn't support it
-              maxMemory: {
-                type: "number",
-                // format: "float",
-                // minimum: 1.0 
-              },
-              port: {
-                type: "number", 
-                minimum: ports?.portsTaken.portLimits[0] ?? 1, 
-                maximum: ports?.portsTaken.portLimits[1] ?? 65535 
-              },
-              rcon: { 
-                type: "number", 
-                minimum: ports?.portsTaken.rconLimits[0] ?? 1, 
-                maximum: ports?.portsTaken.rconLimits[1] ?? 65535  
-              },
-              instanceUpload: { 
-                type: "array",
-                items: {
-                  type: "object"
-                },
-                maxItems: 1,
-                minItems: 1,
-              },
+              maxMemory: NumberInputData(1.0, 32.0),
+              port: NumberInputData(ports?.portsTaken.portLimits[0] ?? 1, ports?.portsTaken.portLimits[1] ?? 65535),
+              rcon: NumberInputData(ports?.portsTaken.rconLimits[0] ?? 1, ports?.portsTaken.rconLimits[1] ?? 65535),
+              // instanceUpload: { 
+              //   type: "array",
+              //   items: {
+              //     type: "object"
+              //   },
+              //   maxItems: 1,
+              //   minItems: 1,
+              // },
 
             },
-            required: ["name", "upCmd", "url", "maxMemory", "port", "rcon"]
+            required: ["name", "upCmd", "url", "maxMemory", "port", "rcon", "instanceUpload"]
           }
     },[ports]);
 
@@ -95,29 +98,37 @@ const CreatePage = ({}: SSRProps) => {
         }
       });
 
-    const [createServer, {data,loading: csLoading,error}] = useMutation<boolean>(gql`
+    const [createServer, {data,loading: csLoading,error}] = useMutation<any>(gql`
         mutation Mutation($data: NewServer!) {
             newServer(data: $data)
         }
     `);
 
-    const onSubmit = (data: any) => {
+    const onSubmit = async (formData: FormData) => {
+        let data = {
+          ...formData,
+          instanceUpload: (formData.instanceUpload as unknown as FileList | undefined)?.[0] ?? null,
+          maxMemory: (formData.maxMemory as any)?.value ?? null,
+          port: (formData.port as any)?.value ?? null,
+          rcon: (formData.rcon as any)?.value ?? null
+        };
 
-        let instanceUpload = data.instanceUpload?.[0] ?? null;
-
-        createServer({ 
-          variables: { 
-            data: {
-              ...data,
-              instanceUpload
-            } 
-          } 
+        const result = await createServer({
+          variables: {
+            data
+          }
         });
+
+        if (result.data?.newServer) {
+          // if all is fine then go back to index
+          window.location.href = '/create';
+        }
+    
     };
 
     return <>
         <TextBig>Create server page:</TextBig>
-        <form onSubmit={handleSubmit(onSubmit)}>
+        <form onSubmit={handleSubmit(onSubmit,(e) => {console.log("Ehm?",e)})}>
             <label>Name</label><br />
             <SInput type="text" {...register("name")} placeholder="server name" /><br />
             {errors.name && <ErrorP>{errors.name.message}</ErrorP>}
@@ -135,21 +146,19 @@ const CreatePage = ({}: SSRProps) => {
             {errors.url && <ErrorP>{errors.url.message}</ErrorP>}
 
             <label>Maximum memory, in GB</label><br />
-            <NumberInput name="maxMemory" type="float" control={control} placeholder="max allowed memory consumption" /><br />
+            <NumberInput name="maxMemory" type="float" control={control} opts={{ min: 1, max: 32 }} placeholder="max allowed memory consumption" /><br />
 
             <label>Port{ports?.portsTaken.portLimits ? <DisplayRange range={ports.portsTaken.portLimits}/> : null}</label><br />
-            <NumberInput name="port" type="int" control={control} placeholder="server port" /><br />
+            <NumberInput name="port" type="int" control={control} opts={{ min: portLimits[0], max: portLimits[1] }} placeholder="server port" /><br />
 
             <label>Rcon{ports?.portsTaken.rconLimits ? <DisplayRange range={ports.portsTaken.rconLimits}/> : null}</label><br />
-            <NumberInput name="rcon" type="int" control={control} placeholder="server rcon" /><br />
+            <NumberInput name="rcon" type="int" control={control} opts={{ min: rconLimits[0], max: rconLimits[1] }} placeholder="server rcon" /><br />
 
             <label>Archive with server instance (max 500 MB)</label><br /> 
             <SInput type="file" {...register("instanceUpload")} /><br /> 
             <button type="submit" disabled={csLoading || pLoading} >Create server</button>
-        </form>
-        {data && <p>Server created successfully!</p>}
-        {error && <p>Error creating server: {error.message}</p>}
-        
+            {error && <ErrorP>{error.message}</ErrorP>}
+        </form>    
     </>
 }
 

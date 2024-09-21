@@ -24,22 +24,36 @@ type NumberInputProps = {
     name: string,
     type: "float" | "int",
     placeholder: string,
+    opts?: {
+        min?: number,
+        max?: number
+    }
 }
 
-export const NumberInput = ({name, control, type, placeholder}: NumberInputProps) => {
-    // <SInput type="number" step="0.2" {...register("maxMemory")} placeholder="max allowed memory consumption" /><br />
+export const NumberInput = ({name, control, type, placeholder, opts}: NumberInputProps) => {
     return <Controller
         name={name}
         control={control}
+        defaultValue={{value: null, displayValue: ""}}
+        rules={{
+            validate: (value) => {
+                // If opts are provided, validate min and max
+                const { value: numericValue } = value;
+                if (opts?.min !== undefined && numericValue < opts.min) {
+                    return `Value must be greater than or equal to ${opts.min}`;
+                }
+                if (opts?.max !== undefined && numericValue > opts.max) {
+                    return `Value must be less than or equal to ${opts.max}`;
+                }
+                return true;
+            },
+        }}
         render={({
                 field,
                 fieldState
             }) => {
                 const onChange = (ev: ChangeEvent<HTMLInputElement>) => {
                     const { value } = ev.target;
-
-                    // Check if value ends with a dot
-                    const endsWithDot = value.endsWith(".");
 
                     let parsedValue: number | null = null;
 
@@ -52,16 +66,17 @@ export const NumberInput = ({name, control, type, placeholder}: NumberInputProps
 
                     // Handle NaN and empty values
                     if (!Number.isNaN(parsedValue) && value !== "") {
-                        const finalValue = endsWithDot ? value : parsedValue;
-                        field.onChange(finalValue);
+                        console.log("Setting value: ", parsedValue, value);
+                        field.onChange({value: parsedValue, displayValue: value});
                     } else {
+                        console.log("Setting value: ", null, "");
                         // Handle empty input case
-                        field.onChange(null);
+                        field.onChange({value: null, displayValue: ""});
                     }
                 };
 
                 return <>
-                    <SInput ref={field.ref} value={field.value} onChange={onChange} placeholder={placeholder} />
+                    <SInput ref={field.ref} value={field.value.displayValue} onChange={onChange} placeholder={placeholder} />
                     {fieldState.error && <ErrorP>{fieldState.error.message}</ErrorP>}
                 </>
         }}
