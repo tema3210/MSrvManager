@@ -14,6 +14,8 @@ type Props = {
 const Desc = ({instance, selected, setSelected}: Props) => {
     const {name,state} = instance;
 
+
+    // make a better look for the instance
     return <Inner onClick={setSelected} selected={selected}>
         {name} is {state};
         Memory usage: {instance.memory ?? null};

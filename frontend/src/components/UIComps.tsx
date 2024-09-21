@@ -66,10 +66,8 @@ export const NumberInput = ({name, control, type, placeholder, opts}: NumberInpu
 
                     // Handle NaN and empty values
                     if (!Number.isNaN(parsedValue) && value !== "") {
-                        console.log("Setting value: ", parsedValue, value);
                         field.onChange({value: parsedValue, displayValue: value});
                     } else {
-                        console.log("Setting value: ", null, "");
                         // Handle empty input case
                         field.onChange({value: null, displayValue: ""});
                     }

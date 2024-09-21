@@ -316,10 +316,15 @@ impl Handler<messages::NewServer> for Servers {
                         }
                         log::trace!("making {:?}", &*outpath);
                         let mut outfile = File::create(&outpath)?;
+                        log::trace!("copying {:?}", &*outpath);
+
                         copy(&mut archive_file, &mut outfile)?;
+
+                        log::trace!("copied {:?}", &*outpath);
                     }
                 }
 
+                //run setup command if it exists
                 if let Some(mut c) = setup_cmd {
                     if c.spawn()?.wait()?.success() {
                         Ok(())
