@@ -41,12 +41,12 @@ const InstanceActions = ({instance}: Props) => {
     };
 
     return <div>
-        <Btn onClick={onClickDelete}>Delete</Btn><br />
         {(state == "RUNNING")
             ? <Btn onClick={switchServer(false)}>Stop</Btn> 
             : <Btn onClick={switchServer(true)}>Start</Btn>
         }<br />
         <Btn onClick={alterOnClick}>Alter</Btn><br />
+        <Btn onClick={onClickDelete}>Delete</Btn><br />
     </div>
 }
 
