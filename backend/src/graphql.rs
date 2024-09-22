@@ -11,7 +11,7 @@ pub struct Query;
 #[Object]
 impl Query {
     async fn app_version(&self) -> &'static str {
-        "0.7"
+        "0.8"
     }
 
     async fn ports_taken<'cx>(&self, ctx: &Context<'cx>) -> anyhow::Result<messages::PortsInfo> {

@@ -8,6 +8,7 @@ import Btn from "./components/Button";
 import { gql, useSubscription, useQuery } from "@apollo/client";
 import styled from "styled-components";
 import { TextBig } from "./components/UIComps";
+import Spinner from "./components/Spinner";
 
 const Wrapper = styled.div`
     display: flex;
@@ -15,10 +16,10 @@ const Wrapper = styled.div`
     align-items: stretch;
 `;
 
-const InstanceWrapper = styled.div`
+const InstanceWrapper = styled.div<{width: string}>`
     margin-left: 1rem;
     margin-right: 1rem;
-    width: calc(45% - 2rem);
+    width: ${({width}) => `calc(${width} - 2rem)`};
 `;
 
 const Footer = styled.div`
@@ -50,7 +51,7 @@ const Index = ({}: SSRProps) => {
 
     const [selected,setSelected] = useState<InstanceDescriptor | null>(null);
 
-    if (loading) return "Loading server list";
+    if (loading) return <Spinner />;
     if (error) return <pre>{error.message}</pre>
 
     const createOnClick = () => {
@@ -58,7 +59,7 @@ const Index = ({}: SSRProps) => {
     };
     
     return <Wrapper>
-        <InstanceWrapper>
+        <InstanceWrapper width="75%">
             <TextBig>We have these servers:</TextBig>
             {(data?.servers ?? [])
                 .map((v) => (
@@ -75,7 +76,7 @@ const Index = ({}: SSRProps) => {
                 ))
             }
         </InstanceWrapper>
-        <InstanceWrapper>
+        <InstanceWrapper width="25%">
             <TextBig>Actions:</TextBig>
             <Btn onClick={createOnClick}>Create Server =&gt;</Btn>
             {
