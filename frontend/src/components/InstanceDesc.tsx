@@ -2,7 +2,7 @@ import styled from "styled-components";
 import {InstanceDescriptor} from "../model";
 
 const Inner = styled.div<{selected: boolean}>`
-    background-color: ${(p) => p.selected ? '#ffffffbc' : '#ffffff5c'};
+    background-color: ${(p) => p.selected ? '#ff9034' : 'rgba(255, 255, 255, 0.9)'};
     padding: 16px;
     border-radius: 8px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);

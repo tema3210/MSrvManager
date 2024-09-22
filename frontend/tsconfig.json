@@ -6,7 +6,9 @@
       "jsx": "react-jsx",
       "strict": true,
       "esModuleInterop": true,
-      "skipLibCheck": true,
+      "skipLibCheck": false,
+      "allowImportingTsExtensions": true,
+      "noEmit": true,
       "forceConsistentCasingInFileNames": true
     },
     "include": ["src","web_components.tsx"]

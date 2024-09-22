@@ -10,8 +10,26 @@ export const TextBig = styled.div`
 `;
 
 export const SInput = styled.input`
-    margin-bottom: 0.5rem;
-    width: 17rem;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    width: 100%;
+    box-sizing: border-box;
+    font-size: 16px;
+    margin-bottom: 15px;
+
+    &:focus {
+        border-color: #007BFF;
+        outline: none;
+    }
+`;
+
+export const Label = styled.label`
+    font-size: 1rem;
+    color: #333;
+    margin-top: 5px;
+    display: block;
+    font-weight: bold;
 `;
 
 export const ErrorP = styled.p`

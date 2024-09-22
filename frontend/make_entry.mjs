@@ -6,7 +6,7 @@ function capitalize(str) {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
-const WEBCOMPONENTS_DIR = "./src/web_components" 
+const WEBCOMPONENTS_DIR = "./src/web_components"
 const OUTPUT_FILE = "web_components.tsx"
 
 const registerJSX = (el_name,ty) => {
@@ -109,37 +109,40 @@ componentFiles.forEach(file => {
       let propDesc = '';
       propsType.getProperties().forEach((prop) => {
         const propName = prop.getName();
-
         const propTy = prop.getTypeAtLocation(symbolDeclaration);
 
-        // if (isFunctionLike(propTy)) {
-        //   propDesc += `${propName}: "function",`;
-        //   return
-        // };
+        // const isOptional = prop.isOptional() ? '?' : '';
+      
+        // console.log(`Processing property: ${propName}, Type: ${propTy.getText()}, Optional: ${isOptional}`);
 
-        if (propTy.isArray() || propTy.isObject()) {
+        const isUnion = propTy.isUnion();
+        const unionTypes = isUnion ? propTy.getUnionTypes() : [propTy];
+
+        const isType = (typeChecked) => unionTypes.some(typeChecked);
+      
+        if (isType(type => type.isArray() || type.isObject())) {
           propDesc += `${propName}: "json",`;
-          return
+          return;
         }
-
-        if (propTy.isBoolean()) {
+      
+        if (isType(type => type.isBoolean())) {
           propDesc += `${propName}: "boolean",`;
-          return
+          return;
         }
-
-        if (propTy.isString()) {
+      
+        if (isType(type => type.isString())) {
           propDesc += `${propName}: "string",`;
-          return
+          return;
         }
-
-        if (propTy.isNumber() || propTy.isBigInt()) {
+      
+        if (isType(type => type.isNumber() || type.isBigInt())) {
           propDesc += `${propName}: "number",`;
-          return
+          return;
         }
-
+      
         console.error(`${importPath}: ${propTy.getText()} cannot be passed through RWC`);
-      })
-
+      });
+      
       rwcOptions = `{props: {${propDesc}}}`;
     } else {
       return

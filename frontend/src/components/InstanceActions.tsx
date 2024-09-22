@@ -1,14 +1,14 @@
 import styled from "styled-components";
 import {InstanceDescriptor} from "../model";
-import Btn from "./Button"
+import Btn from "./Button";
 import { gql, useMutation } from "@apollo/client";
 
-
 type Props = {
-    instance: InstanceDescriptor, 
+    instance: InstanceDescriptor,
+    deselect: () => void
 }
 
-const InstanceActions = ({instance}: Props) => {
+const InstanceActions = ({instance,deselect}: Props) => {
     const {name,state} = instance;
 
     const [remove] = useMutation(gql`
@@ -23,11 +23,14 @@ const InstanceActions = ({instance}: Props) => {
         }
     `);
 
-    const onClickDelete = () => remove({
-        variables: {
-            name
-        }
-    });
+    const onClickDelete = () => {
+        deselect();
+        remove({
+            variables: {
+                name
+            }
+        })
+    };
 
     const switchServer = (shouldRun: boolean) => () => ctl({
         variables: {

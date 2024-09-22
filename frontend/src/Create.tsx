@@ -3,10 +3,11 @@ import gql from "graphql-tag";
 import { ajvResolver } from '@hookform/resolvers/ajv';
 import { makeOnLoad, SSRProps } from "./lib";
 import { useForm } from "react-hook-form";
-import { ErrorP, NumberInput, SInput, TextBig } from "./components/UIComps";
+import { ErrorP, Label, NumberInput, SInput, TextBig } from "./components/UIComps";
 import { PortsInfo } from "./model";
 import { useMemo } from "react";
 import { fullFormats } from "ajv-formats/dist/formats";
+import Btn from "./components/Button";
 
 type NewServerReq = {
     name: string,
@@ -121,7 +122,7 @@ const CreatePage = ({}: SSRProps) => {
 
         if (result.data?.newServer) {
           // if all is fine then go back to index
-          window.location.href = '/create';
+          window.location.href = '/';
         }
     
     };
@@ -129,34 +130,34 @@ const CreatePage = ({}: SSRProps) => {
     return <>
         <TextBig>Create server page:</TextBig>
         <form onSubmit={handleSubmit(onSubmit,(e) => {console.log("Ehm?",e)})}>
-            <label>Name</label><br />
+            <Label>Name</Label><br />
             <SInput type="text" {...register("name")} placeholder="server name" /><br />
             {errors.name && <ErrorP>{errors.name.message}</ErrorP>}
 
-            <label>Command to launch the instance</label><br />
+            <Label>Command to launch the instance</Label><br />
             <SInput type="text" {...register("upCmd")} placeholder="command by which it can be launched" /><br />
             {errors.upCmd && <ErrorP>{errors.upCmd.message}</ErrorP>}
 
-            <label>Setup command to be run once</label><br />
+            <Label>Setup command to be run once</Label><br />
             <SInput type="text" {...register("setupCmd")} placeholder="command run once at the root of archive" /><br />
             {errors.setupCmd && <ErrorP>{errors.setupCmd.message}</ErrorP>}
 
-            <label>Url to client modpack</label><br />
+            <Label>Url to client modpack</Label><br />
             <SInput type="text" {...register("url")} placeholder="url to mod list" /><br />
             {errors.url && <ErrorP>{errors.url.message}</ErrorP>}
 
-            <label>Maximum memory, in GB</label><br />
+            <Label>Maximum memory, in GB</Label><br />
             <NumberInput name="maxMemory" type="float" control={control} opts={{ min: 1, max: 32 }} placeholder="max allowed memory consumption" /><br />
 
-            <label>Port{ports?.portsTaken.portLimits ? <DisplayRange range={ports.portsTaken.portLimits}/> : null}</label><br />
+            <Label>Port{ports?.portsTaken.portLimits ? <DisplayRange range={ports.portsTaken.portLimits}/> : null}</Label><br />
             <NumberInput name="port" type="int" control={control} opts={{ min: portLimits[0], max: portLimits[1] }} placeholder="server port" /><br />
 
-            <label>Rcon{ports?.portsTaken.rconLimits ? <DisplayRange range={ports.portsTaken.rconLimits}/> : null}</label><br />
+            <Label>Rcon{ports?.portsTaken.rconLimits ? <DisplayRange range={ports.portsTaken.rconLimits}/> : null}</Label><br />
             <NumberInput name="rcon" type="int" control={control} opts={{ min: rconLimits[0], max: rconLimits[1] }} placeholder="server rcon" /><br />
 
-            <label>Archive with server instance (max 500 MB)</label><br /> 
+            <Label>Archive with server instance (max 500 MB)</Label><br /> 
             <SInput type="file" {...register("instanceUpload")} /><br /> 
-            <button type="submit" disabled={csLoading || pLoading} >Create server</button>
+            <Btn type="submit" disabled={csLoading || pLoading} >Create server</Btn>
             {error && <ErrorP>{error.message}</ErrorP>}
         </form>    
     </>

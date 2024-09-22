@@ -80,7 +80,7 @@ const Index = ({}: SSRProps) => {
             <TextBig>Actions:</TextBig>
             <Btn onClick={createOnClick}>Create Server =&gt;</Btn>
             {
-                (selected) ? <InstanceActions instance={selected}/> : null
+                (selected) ? <InstanceActions instance={selected} deselect={() => setSelected(null)}/> : null
             }
         </InstanceWrapper>
         
