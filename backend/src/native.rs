@@ -143,7 +143,11 @@ impl Actor for Servers {
 
     fn started(&mut self, _: &mut Self::Context) {
         for (_, i) in &mut self.servers {
-            i.start();
+            match i.desc.state {
+                model::ServerState::Running => i.start(),
+                _ => {}
+
+            }
         }
     }
 
@@ -358,18 +362,26 @@ impl Handler<messages::NewServer> for Servers {
 impl Handler<messages::SwitchServer> for Servers {
     type Result = anyhow::Result<()>;
 
-    //TODO: consider current instance state for the switch
     fn handle(&mut self, msg: messages::SwitchServer, ctx: &mut Self::Context) -> Self::Result {
         let path = self.name_to_path(msg.name);
+        
+        log::trace!("switching server {:?} - {:?}", &path, &msg.should_run);
 
-        match self.servers.get_mut((&*path).into()) {
+        match self.servers.get_mut(&*path) {
             Some(instance) => {
-                if msg.should_run {
-                    //&& matches!(instance.instance_state)
-                    instance.start();
-                } else {
-                    instance.stop_async(ctx.address());
-                };
+                if !matches!(instance.instance_state, instance::InstanceState::Normal) {
+                    log::error!("cannot switch server in bad state");
+                    return Err(anyhow!("cannot switch server in bad state"));
+                }
+                match (instance.desc.state,msg.should_run) {
+                    (model::ServerState::Stopped, true) => {
+                        instance.start();
+                    }
+                    (model::ServerState::Running, false) => {
+                        instance.stop_async(ctx.address());
+                    }
+                    _ => {}
+                }
                 Ok(())
             }
             None => Err(anyhow!("cannot switch unexisting server")),

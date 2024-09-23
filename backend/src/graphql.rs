@@ -1,4 +1,4 @@
-use async_graphql::{InputObject, Schema, Subscription, Upload };
+use async_graphql::{Schema, Subscription, Upload };
 
 use async_graphql::{Context, Object};
 use futures::StreamExt;
@@ -34,13 +34,6 @@ impl Query {
         }
 
     }
-}
-
-#[derive(InputObject)]
-pub struct InstanceCommands {
-    /// Must not spawn detached processes
-    pub up: String,
-    pub setup: Option<String>
 }
 
 pub struct Mutation;

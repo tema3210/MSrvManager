@@ -149,18 +149,29 @@ impl Instance {
         if !matches!(self.instance_state,InstanceState::Normal) {
             return
         }
+        log::info!("starting server {:?}", &self.place);
         match self.process {
-            Some(_) => return,
+            Some(_) => {
+                log::error!("start called on running instance");
+                return
+            },
             None => {
-                if let Ok(ch) = self.run_command.spawn() {
-                    self.process = Some(ch)
-                };
-                self.hb()
+                match self.run_command.spawn() {
+                    Ok(ch) => {
+                        self.process = Some(ch);
+                        self.desc.state = model::ServerState::Running;
+                        self.hb()
+                    },
+                    Err(e) => {
+                        log::error!("cannot start server due to {}",e);
+                        self.desc.state = model::ServerState::Crashed;
+                    }
+                }
             }
         };
     }
 
-    fn stop_inner(ch: &mut Child, name: Arc<Path>) {
+    fn stop_inner(ch: &mut Child, name: impl AsRef<Path>) {
         if let Some(pipe) =  &mut ch.stdin {
             loop {
                 match pipe.write(b"stop\n") {
@@ -173,7 +184,7 @@ impl Instance {
                         continue
                     },
                     Err(e) => {
-                        log::error!("cannot stop {:?} due to {} - killing",name,e);
+                        log::error!("cannot stop {:?} due to {} - killing",name.as_ref(),e);
                         let _ = ch.kill();
                         break
                     }
@@ -188,11 +199,13 @@ impl Instance {
             return
         }
 
+        log::info!("stopping server async {:?}", &self.place);
+
         if let Some(mut ch) = self.process.take() {
             self.instance_state = InstanceState::Stopping;
             let name = self.place.clone();
             thread::spawn(move || {
-                Self::stop_inner(&mut ch, Arc::clone(&name));
+                Self::stop_inner(&mut ch, &name);
                 addr.do_send(messages::InstanceStopped(name));
             });
             
@@ -212,6 +225,8 @@ impl Instance {
         if !matches!(self.instance_state,InstanceState::Normal) {
             return
         }
+
+        log::info!("stopping server {:?}", &self.place);
 
         if let Some(mut ch) = self.process.take() {
             Self::stop_inner(&mut ch, self.place.clone())
