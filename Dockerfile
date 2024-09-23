@@ -20,6 +20,6 @@ EXPOSE ${PORT}
 RUN mkdir ${DATA_FOLDER}
 WORKDIR /app
 COPY .env .env
-COPY static static
 COPY msrvmanager app
+COPY static static
 CMD ["./app"]

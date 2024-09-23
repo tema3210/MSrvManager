@@ -47,10 +47,16 @@ const CreatePage = ({}: SSRProps) => {
         value: { 
           type: "number",
           minimum,
-          maximum
+          maximum,
+          errorMessage: {
+            type: "Value must be a valid number within range",
+            minimum: `Minimum value is ${minimum}`,
+            maximum: `Maximum value is ${maximum}`
+          }
         },
         displayValue: { type: "string" }
       },
+      required: ["value"],
     });
 
     //fix the schema
@@ -128,8 +134,10 @@ const CreatePage = ({}: SSRProps) => {
     };
 
     return <>
-        <TextBig>Create server page:</TextBig>
+        
         <form onSubmit={handleSubmit(onSubmit,(e) => {console.log("Ehm?",e)})}>
+            <p><TextBig>Create server page: </TextBig><Btn type="submit" disabled={csLoading || pLoading} >Create server</Btn></p>
+
             <Label>Name</Label><br />
             <SInput type="text" {...register("name")} placeholder="server name" /><br />
             {errors.name && <ErrorP>{errors.name.message}</ErrorP>}
@@ -146,18 +154,17 @@ const CreatePage = ({}: SSRProps) => {
             <SInput type="text" {...register("url")} placeholder="url to mod list" /><br />
             {errors.url && <ErrorP>{errors.url.message}</ErrorP>}
 
-            <Label>Maximum memory, in GB</Label><br />
-            <NumberInput name="maxMemory" type="float" control={control} opts={{ min: 1, max: 32 }} placeholder="max allowed memory consumption" /><br />
+            <Label>Maximum memory, in GB (1..32)</Label><br />
+            <NumberInput name="maxMemory" type="float" control={control} placeholder="max allowed memory consumption" /><br />
 
             <Label>Port{ports?.portsTaken.portLimits ? <DisplayRange range={ports.portsTaken.portLimits}/> : null}</Label><br />
-            <NumberInput name="port" type="int" control={control} opts={{ min: portLimits[0], max: portLimits[1] }} placeholder="server port" /><br />
+            <NumberInput name="port" type="int" control={control} placeholder="server port" /><br />
 
             <Label>Rcon{ports?.portsTaken.rconLimits ? <DisplayRange range={ports.portsTaken.rconLimits}/> : null}</Label><br />
-            <NumberInput name="rcon" type="int" control={control} opts={{ min: rconLimits[0], max: rconLimits[1] }} placeholder="server rcon" /><br />
+            <NumberInput name="rcon" type="int" control={control} placeholder="server rcon" /><br />
 
             <Label>Archive with server instance (max 500 MB)</Label><br /> 
             <SInput type="file" {...register("instanceUpload")} /><br /> 
-            <Btn type="submit" disabled={csLoading || pLoading} >Create server</Btn>
             {error && <ErrorP>{error.message}</ErrorP>}
         </form>    
     </>
