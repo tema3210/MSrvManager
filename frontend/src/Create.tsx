@@ -5,7 +5,7 @@ import { makeOnLoad, SSRProps } from "./lib";
 import { useForm } from "react-hook-form";
 import { ErrorP, Label, NumberInput, SInput, TextBig } from "./components/UIComps";
 import { PortsInfo } from "./model";
-import { useMemo } from "react";
+import { ChangeEvent, useMemo } from "react";
 import { fullFormats } from "ajv-formats/dist/formats";
 import Btn from "./components/Button";
 
@@ -17,12 +17,19 @@ type NewServerReq = {
     maxMemory: number,
     port: number,
     rcon: number,
-    instanceUpload: FileList
+    instanceUpload: File,
 }
 
-type FormData = Record<keyof NewServerReq, string | number | object | null>;
+type SpecialHandling = "port" | "rcon" | "maxMemory" | "instanceUpload";  
 
-const DisplayRange = ({range}:{range: [number,number]}) => (<>, allowed: ({range[0]};{range[1]})</>)
+type FormData = Omit<NewServerReq, SpecialHandling> & {
+    maxMemory: {value: number, displayValue: string},
+    port: {value: number, displayValue: string},
+    rcon: {value: number, displayValue: string},
+    instanceUpload: {value: FileList, formData: File[]} | null
+};
+
+const DisplayRange = ({range}:{range: [number,number]}) => (<>allowed: ({range[0]};{range[1]})</>)
 
 const CreatePage = ({}: SSRProps) => {
 
@@ -37,9 +44,7 @@ const CreatePage = ({}: SSRProps) => {
         }
     `);
 
-    const portLimits = [ports?.portsTaken.portLimits[0] ?? 1, ports?.portsTaken.portLimits[1] ?? 65535];
-    
-    const rconLimits = [ports?.portsTaken.rconLimits[0] ?? 1, ports?.portsTaken.rconLimits[1] ?? 65535];
+    const memoryLimits: [number,number] = [1,32];
 
     const NumberInputData = (minimum: number,maximum: number) => ({
       type: "object",
@@ -64,24 +69,37 @@ const CreatePage = ({}: SSRProps) => {
         return {
             type: "object",
             properties: {
-              name: { "type": "string" },
-              upCmd: { "type": "string" },
-              setupCmd: { 
-                type: ["string", "null"]
+              name: { "type": "string", minLength: 4 },
+              upCmd: { "type": "string",minLength: 4 },
+              setupCmd: {
+                oneOf: [
+                  { type: "string", minLength: 4 },
+                  { type: "null" }
+                ]
               },
               url: { type: "string", format: "uri" },
-              maxMemory: NumberInputData(1.0, 32.0),
+              maxMemory: NumberInputData(memoryLimits[0],memoryLimits[1]),
               port: NumberInputData(ports?.portsTaken.portLimits[0] ?? 1, ports?.portsTaken.portLimits[1] ?? 65535),
               rcon: NumberInputData(ports?.portsTaken.rconLimits[0] ?? 1, ports?.portsTaken.rconLimits[1] ?? 65535),
-              // instanceUpload: { 
-              //   type: "array",
-              //   items: {
-              //     type: "object"
-              //   },
-              //   maxItems: 1,
-              //   minItems: 1,
-              // },
-
+              instanceUpload: { 
+                type: "object",
+                properties: {
+                  formData: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                    },
+                    minItems: 1,
+                    maxItems: 1,
+                  },
+                },
+                required: ["formData","value"],
+                errorMessage: {
+                  type: "You must provide a file",
+                  minItems: "You must provide a file",
+                  maxItems: "You must provide a file"
+                }
+              },
             },
             required: ["name", "upCmd", "url", "maxMemory", "port", "rcon", "instanceUpload"]
           }
@@ -91,30 +109,31 @@ const CreatePage = ({}: SSRProps) => {
         register,
         control,
         handleSubmit,
+        setValue,
         formState: { errors }
-      } = useForm<FormData>({
-        resolver: ajvResolver(schema as any, {
-            formats: fullFormats
-        }),
-        defaultValues: {
-          name: "",
-          upCmd: "",
-          setupCmd: null,
-          url: "",
-          instanceUpload: null
-        }
-      });
+    } = useForm<FormData>({
+      resolver: ajvResolver(schema as any, {
+          formats: fullFormats
+      }),
+      defaultValues: {
+        name: "",
+        upCmd: "",
+        setupCmd: null,
+        url: "",
+        instanceUpload: null
+      }
+    });
 
-    const [createServer, {data,loading: csLoading,error}] = useMutation<any>(gql`
+    const [createServer, {error}] = useMutation<any>(gql`
         mutation Mutation($data: NewServer!) {
             newServer(data: $data)
         }
     `);
 
     const onSubmit = async (formData: FormData) => {
-        let data = {
+        let data: NewServerReq = {
           ...formData,
-          instanceUpload: (formData.instanceUpload as unknown as FileList | undefined)?.[0] ?? null,
+          instanceUpload: formData.instanceUpload?.formData[0]!,
           maxMemory: (formData.maxMemory as any)?.value ?? null,
           port: (formData.port as any)?.value ?? null,
           rcon: (formData.rcon as any)?.value ?? null
@@ -133,10 +152,30 @@ const CreatePage = ({}: SSRProps) => {
     
     };
 
+    let onChange = (e: ChangeEvent<HTMLInputElement>): boolean => {
+      const files = e.target.files;
+      if (files) {
+        const fileArray = Array.from(files) as File[];
+
+        if (fileArray.length !== 1) {
+          setValue("instanceUpload", null);
+          return false;
+        }
+
+        setValue("instanceUpload", {
+          value: files,
+          formData: fileArray
+        });
+        return true;
+      } else {
+        setValue("instanceUpload", null);
+        return false;
+      }
+    };
+    
     return <>
-        
-        <form onSubmit={handleSubmit(onSubmit,(e) => {console.log("Ehm?",e)})}>
-            <p><TextBig>Create server page: </TextBig><Btn type="submit" disabled={csLoading || pLoading} >Create server</Btn></p>
+        <form onSubmit={handleSubmit(onSubmit,(e) => console.log("Es:",e))}> 
+            <p><TextBig>Create server page: </TextBig><Btn type="submit" disabled={pLoading} >Create server</Btn></p>
 
             <Label>Name</Label><br />
             <SInput type="text" {...register("name")} placeholder="server name" /><br />
@@ -154,17 +193,18 @@ const CreatePage = ({}: SSRProps) => {
             <SInput type="text" {...register("url")} placeholder="url to mod list" /><br />
             {errors.url && <ErrorP>{errors.url.message}</ErrorP>}
 
-            <Label>Maximum memory, in GB (1..32)</Label><br />
+            <Label>Maximum memory, in GB <DisplayRange range={memoryLimits}/> </Label><br />
             <NumberInput name="maxMemory" type="float" control={control} placeholder="max allowed memory consumption" /><br />
 
-            <Label>Port{ports?.portsTaken.portLimits ? <DisplayRange range={ports.portsTaken.portLimits}/> : null}</Label><br />
+            <Label>Port, {ports?.portsTaken.portLimits ? <DisplayRange range={ports.portsTaken.portLimits}/> : null}</Label><br />
             <NumberInput name="port" type="int" control={control} placeholder="server port" /><br />
 
-            <Label>Rcon{ports?.portsTaken.rconLimits ? <DisplayRange range={ports.portsTaken.rconLimits}/> : null}</Label><br />
+            <Label>Rcon, {ports?.portsTaken.rconLimits ? <DisplayRange range={ports.portsTaken.rconLimits}/> : null}</Label><br />
             <NumberInput name="rcon" type="int" control={control} placeholder="server rcon" /><br />
 
             <Label>Archive with server instance (max 500 MB)</Label><br /> 
-            <SInput type="file" {...register("instanceUpload")} /><br /> 
+            <SInput type="file" onChange={onChange} /><br /> 
+            {errors.instanceUpload && <ErrorP>{errors.instanceUpload.message}</ErrorP>}
             {error && <ErrorP>{error.message}</ErrorP>}
         </form>    
     </>
