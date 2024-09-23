@@ -70,10 +70,10 @@ const CreatePage = ({}: SSRProps) => {
             type: "object",
             properties: {
               name: { "type": "string", minLength: 4 },
-              upCmd: { "type": "string"},
+              upCmd: { "type": "string" },
               setupCmd: {
                 oneOf: [
-                  { type: "string", minLength: 4 },
+                  { type: "string" },
                   { type: "null" }
                 ]
               },

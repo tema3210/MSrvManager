@@ -2,7 +2,9 @@
 
 # FROM jeanblanchard/alpine-glibc AS image
 
-FROM alpine AS image
+#FROM alpine AS image
+
+FROM amazoncorretto:17-alpine3.20 AS image
 
 LABEL maintainer="work.aab.25122001@gmail.com"
 LABEL version="1.0"

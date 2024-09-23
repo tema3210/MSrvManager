@@ -226,7 +226,7 @@ impl Handler<messages::NewServer> for Servers {
             return Err(anyhow!("server name is already in use"));
         }
 
-        log::info!("creating server at {:?}", &msg);
+        log::info!("creating server with {:?}", &msg);
 
         match (
             self.rcon_range.try_take(msg.rcon),
