@@ -70,7 +70,7 @@ const CreatePage = ({}: SSRProps) => {
             type: "object",
             properties: {
               name: { "type": "string", minLength: 4 },
-              upCmd: { "type": "string",minLength: 4 },
+              upCmd: { "type": "string"},
               setupCmd: {
                 oneOf: [
                   { type: "string", minLength: 4 },
@@ -133,6 +133,7 @@ const CreatePage = ({}: SSRProps) => {
     const onSubmit = async (formData: FormData) => {
         let data: NewServerReq = {
           ...formData,
+          setupCmd: formData.setupCmd?.length === 0 ? null : formData.setupCmd,
           instanceUpload: formData.instanceUpload?.formData[0]!,
           maxMemory: (formData.maxMemory as any)?.value ?? null,
           port: (formData.port as any)?.value ?? null,

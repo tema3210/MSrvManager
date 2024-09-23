@@ -8,7 +8,7 @@ use std::{
 use zip::ZipArchive;
 
 use anyhow::anyhow;
-use instance::{Instance, InstanceState};
+use instance::Instance;
 
 use crate::*;
 
@@ -226,6 +226,8 @@ impl Handler<messages::NewServer> for Servers {
             return Err(anyhow!("server name is already in use"));
         }
 
+        log::info!("creating server at {:?}", &msg);
+
         match (
             self.rcon_range.try_take(msg.rcon),
             self.port_range.try_take(msg.port),
@@ -261,13 +263,17 @@ impl Handler<messages::NewServer> for Servers {
 
         let instance_place: Arc<Path> = path.into();
 
-        let mut cmd_file = File::options()
-            .write(true)
-            .open(&*instance_place.join(instance::COMMAND_FILE_NAME))?;
+        //make a command file
+        {
+            let mut cmd_file = File::options()
+                .write(true)
+                .open(&*instance_place.join(instance::COMMAND_FILE_NAME))?;
 
-        cmd_file.write(msg.up_cmd.as_bytes())?;
+            cmd_file.write(msg.up_cmd.as_bytes())?;
 
-        drop(cmd_file);
+            drop(cmd_file);
+
+        }
 
         let instance = Instance::create(
             Arc::clone(&instance_place),

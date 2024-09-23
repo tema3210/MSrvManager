@@ -37,6 +37,22 @@ pub struct NewServer {
     pub rcon: u16
 }
 
+impl std::fmt::Debug for NewServer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f
+            .debug_struct("NewServer")
+            .field("name", &self.name)
+            .field("up_cmd", &self.up_cmd)
+            .field("setup_cmd", &self.setup_cmd)
+            .field("url", &self.url)
+            .field("instance_upload", &"UploadValue")
+            .field("max_memory", &self.max_memory)
+            .field("port", &self.port)
+            .field("rcon", &self.rcon)
+            .finish()
+    }
+}
+
 #[derive(Message,Debug)]
 #[rtype(result = "anyhow::Result<()>")]
 pub struct DeleteServer {
