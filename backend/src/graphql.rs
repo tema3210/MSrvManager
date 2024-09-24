@@ -60,7 +60,8 @@ impl Mutation {
         should_run: bool
     ) -> Result<bool,anyhow::Error> {
         let service = ctx.data_unchecked::<native::Service>();
-
+        
+        log::info!("should_run {} {}",name,should_run);
         service.send(messages::SwitchServer {
             name,
             should_run
@@ -147,7 +148,7 @@ impl Subscription {
         let service = ctx.data_unchecked::<native::Service>();
 
         tokio_stream::wrappers::IntervalStream::new({
-            let mut i = tokio::time::interval(Duration::from_secs(3));
+            let mut i = tokio::time::interval(Duration::from_secs(3) + Duration::from_millis(500));
             i.set_missed_tick_behavior(MissedTickBehavior::Skip);
             i
         })

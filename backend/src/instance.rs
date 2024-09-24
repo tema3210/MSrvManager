@@ -132,7 +132,7 @@ impl Instance {
                     };
                     // memory in KB
                     if let Some(memory) = status.vmrss {
-                        let memory = (memory / (1024 * 1024)) as f64;
+                        let memory = ( memory / 1024 ) as f64 / 1024.0;
                         self.desc.memory = Some(memory)
                     }
                 } else {
@@ -158,15 +158,12 @@ impl Instance {
             None => {
                 log::info!("starting server {:?}", &self.place);
 
-                log::info!("run command 0 {:?}", &self.run_command);
-                
                 let cmd = self.run_command
                     .env("MPORT", self.desc.port.to_string())
                     .env("MRCON", self.desc.rcon.to_string())
                     .env("MAXMEMORY", format!("{}G", self.desc.max_memory))
                     .env("MINMEMORY", "1G");
 
-                log::info!("run command 1{:?}", &cmd);
                 match cmd.spawn() {
                     Ok(ch) => {
                         self.process = Some(ch);

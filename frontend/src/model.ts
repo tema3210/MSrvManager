@@ -1,4 +1,4 @@
-export type ServerState = "RUNNING" | "STOPPED" | "CRASHED"
+export type ServerState = "Running" | "Stopped" | "Crashed"
 
 export type InstanceDescriptor = {
     name: string,

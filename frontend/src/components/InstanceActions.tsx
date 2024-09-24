@@ -32,20 +32,23 @@ const InstanceActions = ({instance,deselect}: Props) => {
         })
     };
 
-    const switchServer = (shouldRun: boolean) => () => ctl({
-        variables: {
-            name,
-            shouldRun
-        }
-    });
+    const switchServer = (shouldRun: boolean) => () => {
+        console.log(name,shouldRun)
+        ctl({
+            variables: {
+                name,
+                shouldRun
+            }
+        })
+    };
 
     const alterOnClick = () => {
         window.location.href = `/alter?name=${name}`;
     };
 
     return <div>
-        {(state == "RUNNING")
-            ? <Btn onClick={switchServer(false)}>Stop</Btn> 
+        {(state == "Running")
+            ? <Btn onClick={switchServer(false)}>Stop</Btn>
             : <Btn onClick={switchServer(true)}>Start</Btn>
         }<br />
         <Btn onClick={alterOnClick}>Alter</Btn><br />
