@@ -201,13 +201,19 @@ impl Instance {
         };
     }
 
+    pub fn finish_stop(&mut self) {
+        self.desc.state = model::ServerState::Stopped;
+        self.desc.memory = None;
+        self.flush();
+        self.instance_state = InstanceState::Normal;
+    }
 
     pub fn stop_async(&mut self, addr: native::Service) {
-        if matches!(self.instance_state,InstanceState::Normal) {
+        log::info!("stopping server async {:?}", &self.place);
+
+        if !matches!(self.instance_state,InstanceState::Normal) {
             return
         }
-
-        log::info!("stopping server async {:?}", &self.place);
 
         if let Some(mut ch) = self.process.take() {
             self.instance_state = InstanceState::Stopping;
@@ -221,20 +227,14 @@ impl Instance {
         
     }
 
-    pub fn finish_stop(&mut self) {
-        self.desc.state = model::ServerState::Stopped;
-        self.desc.memory = None;
-        self.flush();
-        self.instance_state = InstanceState::Normal;
-    }
 
     /// blocks current thread
     pub fn stop(&mut self) {
+        log::info!("stopping server {:?}", &self.place);
+
         if !matches!(self.instance_state,InstanceState::Normal) {
             return
-        }
-
-        log::info!("stopping server {:?}", &self.place);
+        }     
 
         if let Some(mut ch) = self.process.take() {
             Self::stop_inner(&mut ch, self.place.clone())

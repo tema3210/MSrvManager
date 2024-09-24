@@ -371,8 +371,6 @@ impl Handler<messages::SwitchServer> for Servers {
 
     fn handle(&mut self, msg: messages::SwitchServer, ctx: &mut Self::Context) -> Self::Result {
         let path = self.name_to_path(msg.name);
-        
-        log::trace!("switching server {:?} - {:?}", &path, &msg.should_run);
 
         match self.servers.get_mut(&*path) {
             Some(instance) => {
@@ -380,7 +378,9 @@ impl Handler<messages::SwitchServer> for Servers {
                     log::error!("cannot switch server in bad state");
                     return Err(anyhow!("cannot switch server in bad state"));
                 }
-                match (instance.desc.state,msg.should_run) {
+                let t = (instance.desc.state,msg.should_run);
+                log::info!("switching {:?} on {:?}", &path, t);
+                match t {
                     (model::ServerState::Stopped | model::ServerState::Crashed, true) => {
                         instance.start();
                     }
@@ -399,7 +399,7 @@ impl Handler<messages::SwitchServer> for Servers {
 impl Handler<messages::AlterServer> for Servers {
     type Result = anyhow::Result<()>;
 
-    fn handle(&mut self, msg: messages::AlterServer, cx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: messages::AlterServer, _: &mut Self::Context) -> Self::Result {
         let path = self.name_to_path(msg.name);
 
         match self.servers.get_mut((&*path).into()) {
