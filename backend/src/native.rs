@@ -379,7 +379,7 @@ impl Handler<messages::SwitchServer> for Servers {
                     return Err(anyhow!("cannot switch server in bad state"));
                 }
                 let t = (instance.desc.state,msg.should_run);
-                log::info!("switching {:?} on {:?}", &path, t);
+                log::trace!("switching {:?} on {:?}", &path, t);
                 match t {
                     (model::ServerState::Stopped | model::ServerState::Crashed, true) => {
                         instance.start();
@@ -442,6 +442,7 @@ impl Handler<messages::InstanceStopped> for Servers {
                     log::error!("instance stopped message for a not stopping target");
                     return;
                 };
+                log::info!("instance stopped for {:?}", e.key());
                 e.get_mut().finish_stop();
             }
             std::collections::hash_map::Entry::Vacant(_) => {

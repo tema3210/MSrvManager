@@ -68,7 +68,12 @@ impl Instance {
         if parts.len() > 1 {
             run_command.args(&parts[1..]);
         }
-        run_command.current_dir(at);
+
+        run_command
+            .current_dir(at)
+            // .stdout(std::process::Stdio::piped())
+            // .stderr(std::process::Stdio::piped())
+            .stdin(std::process::Stdio::piped());
 
         Ok(run_command)
     }
@@ -179,7 +184,9 @@ impl Instance {
         };
     }
 
+    
     fn stop_inner(ch: &mut Child, name: impl AsRef<Path>) {
+        log::info!("stopping server {:?} factually", &name.as_ref());
         if let Some(pipe) =  &mut ch.stdin {
             loop {
                 match pipe.write(b"stop\n") {
