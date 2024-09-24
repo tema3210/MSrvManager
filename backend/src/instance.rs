@@ -105,14 +105,7 @@ impl Instance {
         let mut manifest = Self::open_manifest(&*place)?;
         let desc: model::InstanceDescriptor = model::InstanceDescriptor::from_file(&mut manifest)?;
 
-        let mut command_file = std::fs::File::open((&*place).join(COMMAND_FILE_NAME))?;
-
-        let mut run_command = String::new();
-
-        command_file.read_to_string(&mut run_command)?;
-
-        let mut run_command = Command::new(run_command);
-        run_command.current_dir(&*place);
+        let run_command = Self::read_run_command(&*place)?;
 
         Ok(Self {desc, place, manifest, run_command, process: None, instance_state: InstanceState::Normal})
     }
@@ -164,6 +157,8 @@ impl Instance {
             },
             None => {
                 log::info!("starting server {:?}", &self.place);
+
+                log::info!("run command 0 {:?}", &self.run_command);
                 
                 let cmd = self.run_command
                     .env("MPORT", self.desc.port.to_string())
@@ -171,7 +166,7 @@ impl Instance {
                     .env("MAXMEMORY", format!("{}G", self.desc.max_memory))
                     .env("MINMEMORY", "1G");
 
-                log::info!("run command {:?}", &cmd);
+                log::info!("run command 1{:?}", &cmd);
                 match cmd.spawn() {
                     Ok(ch) => {
                         self.process = Some(ch);
