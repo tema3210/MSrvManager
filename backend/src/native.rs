@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    fs::File,
+    fs::{File, Permissions},
     io::{copy, Write},
     ops::Range,
     path::{Path, PathBuf},
@@ -330,7 +330,14 @@ impl Handler<messages::NewServer> for Servers {
 
                         copy(&mut archive_file, &mut outfile)?;
 
-                        log::trace!("copied {:?}", &*outpath);
+                        // Set file permissions
+                        if let Some(mode) = archive_file.unix_mode() {
+                            let permissions = <Permissions as std::os::unix::fs::PermissionsExt>::from_mode(mode);
+                            std::fs::set_permissions(&outpath, permissions.clone())?;
+                            log::info!("set permissions {:?} for {:?}", permissions, &*outpath);
+                        }
+
+                        log::info!("copied {:?}", &*outpath);
                     }
                 }
 
@@ -374,7 +381,7 @@ impl Handler<messages::SwitchServer> for Servers {
                     return Err(anyhow!("cannot switch server in bad state"));
                 }
                 match (instance.desc.state,msg.should_run) {
-                    (model::ServerState::Stopped, true) => {
+                    (model::ServerState::Stopped | model::ServerState::Crashed, true) => {
                         instance.start();
                     }
                     (model::ServerState::Running, false) => {

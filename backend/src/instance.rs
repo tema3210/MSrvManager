@@ -59,7 +59,15 @@ impl Instance {
 
         cmd_file.read_to_string(&mut run_command)?;
 
-        let mut run_command = Command::new(run_command);
+        let parts: Vec<&str> = run_command.trim().split_whitespace().collect();
+        if parts.is_empty() {
+            return Err(anyhow!("run.command file is empty or invalid"));
+        }
+
+        let mut run_command = Command::new(parts[0]);
+        if parts.len() > 1 {
+            run_command.args(&parts[1..]);
+        }
         run_command.current_dir(at);
 
         Ok(run_command)
@@ -149,14 +157,22 @@ impl Instance {
         if !matches!(self.instance_state,InstanceState::Normal) {
             return
         }
-        log::info!("starting server {:?}", &self.place);
         match self.process {
             Some(_) => {
                 log::error!("start called on running instance");
                 return
             },
             None => {
-                match self.run_command.spawn() {
+                log::info!("starting server {:?}", &self.place);
+                
+                let cmd = self.run_command
+                    .env("MPORT", self.desc.port.to_string())
+                    .env("MRCON", self.desc.rcon.to_string())
+                    .env("MAXMEMORY", format!("{}G", self.desc.max_memory))
+                    .env("MINMEMORY", "1G");
+
+                log::info!("run command {:?}", &cmd);
+                match cmd.spawn() {
                     Ok(ch) => {
                         self.process = Some(ch);
                         self.desc.state = model::ServerState::Running;
