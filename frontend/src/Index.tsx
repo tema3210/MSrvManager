@@ -36,20 +36,13 @@ const Index = ({}: SSRProps) => {
         }
     `);
 
-    const { data, loading, error } = useSubscription<{servers: InstanceDescriptor[]}>(gql`
+    const { data, loading, error } = useSubscription<{servers: Record<string,InstanceDescriptor>}>(gql`
         subscription {
-            servers {
-                name,
-                memory,
-                state,
-                maxMemory,
-                mods,
-                port
-            }
+            servers
         }
     `);
 
-    const [selected,setSelected] = useState<InstanceDescriptor | null>(null);
+    const [selected,setSelected] = useState<string | null>(null);
 
     if (loading) return <Spinner />;
     if (error) return <pre>{error.message}</pre>
@@ -61,26 +54,27 @@ const Index = ({}: SSRProps) => {
     return <Wrapper>
         <InstanceWrapper width="75%">
             <TextBig>We have these servers:</TextBig>
-            {(data?.servers ?? [])
-                .map((v) => (
-                    <InstanceDisplay
-                        key={v.name}
-                        instance={v}
-                        selected={selected?.name === v.name}
-                        setSelected={
-                            (selected?.name === v.name)
-                                ? () => setSelected(null)
-                                : () => setSelected(v)
-                        }
-                    />
-                ))
+            {
+                Object.entries((data!.servers ?? {}))
+                    .map(([name,desc]) => (
+                        <InstanceDisplay
+                            key={name}
+                            instance={desc}
+                            selected={selected === name}
+                            setSelected={
+                                (selected === name)
+                                    ? () => setSelected(null)
+                                    : () => setSelected(name)
+                            }
+                        />
+                    ))
             }
         </InstanceWrapper>
         <InstanceWrapper width="25%">
             <TextBig>Actions:</TextBig><br />
             <Btn onClick={createOnClick}>Create Server =&gt;</Btn>
             {
-                (selected) ? <InstanceActions instance={selected} deselect={() => setSelected(null)}/> : null
+                (selected) ? <InstanceActions instance={(data!.servers ?? {})[selected]} deselect={() => setSelected(null)}/> : null
             }
         </InstanceWrapper>
         

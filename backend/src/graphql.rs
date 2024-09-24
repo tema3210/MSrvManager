@@ -138,14 +138,16 @@ impl Mutation {
 
 pub struct Subscription;
 
+type Servers = std::collections::HashMap<String,model::InstanceDescriptor>;
+
 #[Subscription]
 impl Subscription {
-    async fn servers<'cx>(&self,ctx: &Context<'cx>) -> impl futures::Stream<Item=Vec<model::InstanceDescriptor> > + 'cx {
-        log::trace!("Initializing servers subscription");
+    async fn servers<'cx>(&self,ctx: &Context<'cx>) -> impl futures::Stream<Item=Servers > + 'cx {
+        log::info!("Initializing servers subscription");
         let service = ctx.data_unchecked::<native::Service>();
 
         tokio_stream::wrappers::IntervalStream::new({
-            let mut i = tokio::time::interval(Duration::from_secs(4));
+            let mut i = tokio::time::interval(Duration::from_secs(3));
             i.set_missed_tick_behavior(MissedTickBehavior::Skip);
             i
         })
@@ -154,12 +156,17 @@ impl Subscription {
             service.do_send(messages::Tick);
             //then we ask for the data
             match service.send(messages::Instances {
-                f: |i| i.clone()
+                f: |i| (i.name.clone(),i.clone())
             }).await {
-                Ok(data) => data,
+                Ok(data) => {
+                    let data = data
+                        .into_iter()
+                        .collect::<std::collections::HashMap<String,model::InstanceDescriptor>>();
+                    data
+                },
                 Err(e) => {
                     log::error!("cannot get instance list: {}",e);
-                    vec![]
+                    std::collections::HashMap::new()
                 }
             }
         })
