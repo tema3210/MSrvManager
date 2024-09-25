@@ -106,8 +106,8 @@ const CreatePage = ({}: SSRProps) => {
     });
 
     const [createServer, {error}] = useMutation<any>(gql`
-        mutation Mutation($data: NewServer!) {
-            newServer(data: $data)
+        mutation Mutation($data: NewServer!,$password: String!) {
+            newServer(data: $data, password: $password)
         }
     `);
 
@@ -121,9 +121,16 @@ const CreatePage = ({}: SSRProps) => {
           rcon: (formData.rcon as any)?.value ?? null
         };
 
+        let password = prompt("Please enter the password to create the server");
+
+        if (!password) {
+          return;
+        }
+
         const result = await createServer({
           variables: {
-            data
+            data,
+            password
           }
         });
 

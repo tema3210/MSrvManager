@@ -137,6 +137,9 @@ async fn main() -> std::io::Result<()> {
         .parse::<u16>()
         .expect("bad port format");
 
+    let password = std::env::var("PASSWORD")
+        .expect("no password specified");
+
     let addr = std::env::var("ADDR")
         .expect("no addr specified")
         .parse::<std::net::Ipv4Addr>()
@@ -167,7 +170,7 @@ async fn main() -> std::io::Result<()> {
 
     let native = native::Servers::init(srvrs_dir,rcons,ports).expect("cannot init native service").start();
 
-    let schema = Arc::new(graphql::schema(native));
+    let schema = Arc::new(graphql::schema(native,password));
 
     log::info!("starting HTTP server on port {port}");
 

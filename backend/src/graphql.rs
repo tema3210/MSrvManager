@@ -17,7 +17,7 @@ impl Query {
     async fn instance<'cx>(&self, ctx: &Context<'cx>, name: String) -> anyhow::Result<Option<model::InstanceDescriptor>> {
         let service = ctx.data_unchecked::<native::Service>();
 
-        let data =  service.send(messages::Instance { 
+        let data = service.send(messages::Instance { 
             name,
             f: |i| i.clone()
         }).await?;
@@ -81,9 +81,17 @@ impl Mutation {
     async fn new_server<'cx>(
         &self,
         ctx: &Context<'cx>,
-        data: NewServer
+        data: NewServer,
+        password: String
     ) -> Result<bool,anyhow::Error> {
         let service = ctx.data_unchecked::<native::Service>();
+
+        let pass = ctx.data_unchecked::<Password>();
+
+        if password != pass.0 {
+            log::error!("wrong password: {}",password);
+            return Err(anyhow::anyhow!("wrong password"));
+        }
 
         let val = data.instance_upload.value(ctx)?;
         
@@ -122,8 +130,15 @@ impl Mutation {
         Ok(true)
     }
 
-    async fn delete_server<'cx>(&self,ctx: &Context<'cx>,name: String) -> Result<bool,anyhow::Error> {
+    async fn delete_server<'cx>(&self,ctx: &Context<'cx>,name: String, password: String) -> Result<bool,anyhow::Error> {
         let service = ctx.data_unchecked::<native::Service>();
+
+        let pass = ctx.data_unchecked::<Password>();
+
+        if pass.0 != password {
+            log::error!("wrong password: {}",password);
+            return Err(anyhow::anyhow!("wrong password"));
+        }
 
         service.send(messages::DeleteServer {
             name
@@ -174,8 +189,11 @@ impl Subscription {
 // Request queries can be executed against a RootNode.
 pub type SrvsSchema = Schema<Query, Mutation, Subscription>;
 
-pub fn schema(addr: crate::native::Service) -> SrvsSchema {
+struct Password(String);
+
+pub fn schema(addr: crate::native::Service,pass: String) -> SrvsSchema {
     Schema::build(Query,Mutation, Subscription)
     .data::<native::Service>(addr)
+    .data(Password(pass))
     .finish()
 }

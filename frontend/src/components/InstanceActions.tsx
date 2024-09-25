@@ -12,8 +12,8 @@ const InstanceActions = ({instance,deselect}: Props) => {
     const {name,state} = instance;
 
     const [remove] = useMutation(gql`
-        mutation Mutation($name: String!) {
-            deleteServer(name: $name)
+        mutation Mutation($name: String!,$password: String!) {
+            deleteServer(name: $name,password: $password)
         }
     `);
 
@@ -24,10 +24,17 @@ const InstanceActions = ({instance,deselect}: Props) => {
     `);
 
     const onClickDelete = () => {
+        let password = prompt("Please enter the password to delete this server");
+
+        if (!password) {
+            return;
+        }
+        
         deselect();
         remove({
             variables: {
-                name
+                name,
+                password
             }
         })
     };
