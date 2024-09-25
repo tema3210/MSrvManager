@@ -1,5 +1,7 @@
 use std::{fs::File, io::{ErrorKind, Read, Seek, SeekFrom, Write}, path::Path, process::Child, thread};
 
+use wait_timeout::ChildExt;
+
 use crate::*;
 
 use anyhow::anyhow;
@@ -185,27 +187,48 @@ impl Instance {
     }
 
     
-    fn stop_inner(ch: &mut Child, name: impl AsRef<Path>) {
+    fn stop_inner(mut ch: Child, name: impl AsRef<Path>) {
         log::info!("stopping server {:?} factually", &name.as_ref());
-        if let Some(pipe) =  &mut ch.stdin {
-            loop {
-                match pipe.write(b"stop\n") {
-                    Ok(0) => break, // dead
-                    Ok(_) => {
-                        std::thread::sleep(std::time::Duration::from_secs(5));
-                        continue;
+        const STOP_CMD: &[u8] = b"stop\n";
+        if let Some(pipe) = &mut ch.stdin {
+            let mut written = 0;
+            while written < STOP_CMD.len() {
+                match pipe.write(&STOP_CMD[written..]) {
+                    Ok(0) => break, // dead or written
+                    Ok(n) => {
+                        written += n;
                     },
                     Err(e) if e.kind() == ErrorKind::Interrupted => {
-                        continue
+                        continue;
                     },
                     Err(e) => {
-                        log::error!("cannot stop {:?} due to {} - killing",name.as_ref(),e);
-                        let _ = ch.kill();
-                        break
+                        log::error!("cannot stop {:?} due to {} - killing", name.as_ref(), e);
+                        break;
                     }
                 }
+            };
+
+            match ch.wait_timeout(std::time::Duration::from_secs(10)) {
+                Ok(Some(status)) => {
+                    log::info!("server {:?} stopped with status {:?}", name.as_ref(), status);
+                    Instance::dispose(ch);
+                }
+                Ok(None) => {
+                    log::warn!("server {:?} did not stop in time, killing", name.as_ref());
+                    let _ = ch.kill();
+                    Instance::dispose(ch);
+                }
+                Err(e) => {
+                    log::error!("error while waiting for server {:?} to stop: {}", name.as_ref(), e);
+                    let _ = ch.kill();
+                    Instance::dispose(ch);
+                }
             }
-        };
+        } else {
+            log::error!("stdin pipe is not available for {:?}", name.as_ref());
+            let _ = ch.kill();
+            Instance::dispose(ch);
+        }
     }
 
     pub fn finish_stop(&mut self) {
@@ -222,11 +245,11 @@ impl Instance {
             return
         }
 
-        if let Some(mut ch) = self.process.take() {
+        if let Some(ch) = self.process.take() {
             self.instance_state = InstanceState::Stopping;
             let name = self.place.clone();
             thread::spawn(move || {
-                Self::stop_inner(&mut ch, &name);
+                Self::stop_inner(ch, &name);
                 addr.do_send(messages::InstanceStopped(name));
             });
             
@@ -243,22 +266,37 @@ impl Instance {
             return
         }     
 
-        if let Some(mut ch) = self.process.take() {
-            Self::stop_inner(&mut ch, self.place.clone())
+        if let Some(ch) = self.process.take() {
+            Self::stop_inner(ch, self.place.clone())
         }
 
         self.finish_stop()
     }
 
     pub fn kill(&mut self) {
-        match &mut self.process {
-            Some(ch) => {
-                // here we can only have a zombie process failure, which is not a failure as such for us
+        match self.process.take() {
+            Some(mut ch) => {
                 let _ = ch.kill();
+                Instance::dispose(ch);
+
                 self.desc.state = model::ServerState::Stopped;
                 self.desc.memory = None
             },
             None => {}
         }
+    }
+    /// it only disposed process, not kills its
+    fn dispose(mut child: Child) {
+        std::thread::spawn(move || {
+            let r = child.wait();
+            match r {
+                Ok(status) => {
+                    log::info!("child with pid {} died with status: {:?}", child.id(), status);
+                }
+                Err(e) => {
+                    log::error!("error while waiting for child to die: {}", e);
+                }
+            }
+        });
     }
 }
