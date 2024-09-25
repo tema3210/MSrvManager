@@ -45,7 +45,7 @@ const Desc = ({instance, selected, setSelected}: Props) => {
                 <InfoItem>Memory usage: {memory ?? 'N/A'}</InfoItem>
                 <InfoItem>Max memory: {maxMemory} GB</InfoItem>
                 <InfoItem>Port: {port}</InfoItem>
-                <InfoItem>Mods URL: {instance.mods}</InfoItem>
+                <InfoItem>Mods URL: <a>{instance.mods}</a></InfoItem>
             </Info>
         </Inner>
     );

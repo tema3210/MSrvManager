@@ -42,6 +42,8 @@ const Index = ({}: SSRProps) => {
         }
     `);
 
+    console.log(data);
+
     const [selected,setSelected] = useState<string | null>(null);
 
     if (loading) return <Spinner />;
@@ -55,7 +57,7 @@ const Index = ({}: SSRProps) => {
         <InstanceWrapper width="75%">
             <TextBig>We have these servers:</TextBig>
             {
-                Object.entries((data!.servers ?? {}))
+                Object.entries((data?.servers ?? {}))
                     .map(([name,desc]) => (
                         <InstanceDisplay
                             key={name}
@@ -74,7 +76,7 @@ const Index = ({}: SSRProps) => {
             <TextBig>Actions:</TextBig><br />
             <Btn onClick={createOnClick}>Create Server =&gt;</Btn>
             {
-                (selected) ? <InstanceActions instance={(data!.servers ?? {})[selected]} deselect={() => setSelected(null)}/> : null
+                (selected && data?.servers?.[selected]) ? <InstanceActions instance={data.servers[selected]} deselect={() => setSelected(null)}/> : null
             }
         </InstanceWrapper>
         

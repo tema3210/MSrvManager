@@ -184,7 +184,13 @@ where
     type Result = Vec<O>;
 
     fn handle(&mut self, m: messages::Instances<O, F>, _: &mut Context<Self>) -> Self::Result {
-        self.servers.values().map(|i| &i.desc).map(m.f).collect()
+        self
+            .servers
+            .values()
+            .filter(|i| matches!(i.instance_state, instance::InstanceState::Normal))
+            .map(|i| &i.desc)
+            .map(m.f)
+            .collect()
     }
 }
 
