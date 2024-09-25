@@ -71,7 +71,6 @@ impl Mutation {
     ) -> Result<bool,anyhow::Error> {
         let service = ctx.data_unchecked::<native::Service>();
         
-        log::info!("should_run {} {}",name,should_run);
         service.send(messages::SwitchServer {
             name,
             should_run
