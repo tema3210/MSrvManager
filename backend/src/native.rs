@@ -194,6 +194,20 @@ where
     }
 }
 
+impl<O, F> Handler<messages::Instance<O, F>> for Servers
+where
+    F: Send + Fn(&model::InstanceDescriptor) -> O,
+    O: Send + 'static,
+{
+    type Result = Option<O>;
+
+    fn handle(&mut self, msg: messages::Instance<O, F>, _: &mut Self::Context) -> Self::Result {
+        let path = self.name_to_path(msg.name);
+
+        self.servers.get(&*path).map(|instance| (msg.f)(&instance.desc))
+    }
+}
+
 impl Handler<messages::LoadingEnded> for Servers {
     type Result = ();
 
@@ -415,19 +429,19 @@ impl Handler<messages::AlterServer> for Servers {
                     return Err(anyhow!("cannot alter server in bad state"));
                 };
 
+                if let Some(up_cmd) = msg.up_cmd {
+                    let mut cmd_file = File::options()
+                        .write(true)
+                        .truncate(true)
+                        .open(&*instance.place.join(instance::COMMAND_FILE_NAME))?;
+                    cmd_file.write_all(up_cmd.as_bytes())?;
+                }
+
                 if let Some(port) = msg.port {
                     if port != instance.desc.port {
                         self.port_range.try_take(port)?;
                         self.port_range.free(instance.desc.port)?;
                         instance.desc.port = port;
-                    }
-                }
-
-                if let Some(rcon) = msg.rcon {
-                    if rcon != instance.desc.rcon {
-                        self.rcon_range.try_take(rcon)?;
-                        self.rcon_range.free(instance.desc.rcon)?;
-                        instance.desc.rcon = rcon;
                     }
                 }
 

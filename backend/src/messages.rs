@@ -12,6 +12,13 @@ pub struct Instances<O: Send + 'static,F: Send + Fn(&model::InstanceDescriptor) 
     pub f: F
 }
 
+#[derive(Message,Debug)]
+#[rtype(result = "Option<O>")]
+pub struct Instance<O: Send + 'static,F: Send + Fn(&model::InstanceDescriptor) -> O>{
+    pub name: String,
+    pub f: F
+}
+
 #[derive(SimpleObject)]
 pub struct PortsInfo {
     pub ports: Vec<u16>,
@@ -72,7 +79,6 @@ pub struct AlterServer {
     pub name: String,
     pub max_memory: Option<f64>,
     pub port: Option<u16>,
-    pub rcon: Option<u16>,
     pub up_cmd: Option<String>
 }
 

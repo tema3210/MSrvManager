@@ -11,7 +11,18 @@ pub struct Query;
 #[Object]
 impl Query {
     async fn app_version(&self) -> &'static str {
-        "0.8"
+        "0.9"
+    }
+
+    async fn instance<'cx>(&self, ctx: &Context<'cx>, name: String) -> anyhow::Result<Option<model::InstanceDescriptor>> {
+        let service = ctx.data_unchecked::<native::Service>();
+
+        let data =  service.send(messages::Instance { 
+            name,
+            f: |i| i.clone()
+        }).await?;
+        
+        Ok(data)
     }
 
     async fn ports_taken<'cx>(&self, ctx: &Context<'cx>) -> anyhow::Result<messages::PortsInfo> {
@@ -100,7 +111,6 @@ impl Mutation {
         max_memory: Option<f64>,
         up_cmd: Option<String>,
         port: Option<u16>,
-        rcon: Option<u16>
     ) -> Result<String,anyhow::Error> {
         let service = ctx.data_unchecked::<native::Service>();
 
@@ -108,7 +118,6 @@ impl Mutation {
             name: name.clone(),
             max_memory,
             port,
-            rcon,
             up_cmd
         }).await??;
 
