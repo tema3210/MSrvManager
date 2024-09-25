@@ -70,7 +70,10 @@ pub struct SwitchServer {
 #[rtype(result = "anyhow::Result<()>")]
 pub struct AlterServer {
     pub name: String,
-    pub change: model::ServerChange
+    pub max_memory: Option<f64>,
+    pub port: Option<u16>,
+    pub rcon: Option<u16>,
+    pub up_cmd: Option<String>
 }
 
 #[derive(Message,Debug)]

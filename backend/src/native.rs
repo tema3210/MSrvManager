@@ -410,26 +410,31 @@ impl Handler<messages::AlterServer> for Servers {
 
         match self.servers.get_mut((&*path).into()) {
             Some(instance) => {
-                match msg.change {
-                    model::ServerChange::MaxMemory(mm) => instance.desc.max_memory = mm,
-                    model::ServerChange::Port(port) => match self.port_range.try_take(port) {
-                        Ok(_) => {
-                            self.port_range.free(instance.desc.port)?;
-                            instance.desc.port = port
-                        }
-                        Err(_) => return Err(anyhow!("cannot change port to blacklisted")),
-                    },
-                    model::ServerChange::Rcon(port) => {
-                        match self.rcon_range.try_take(port) {
-                            Ok(_) => {
-                                self.rcon_range.free(instance.desc.port)?;
-                                instance.desc.port = port
-                            }
-                            Err(_) => return Err(anyhow!("cannot change port to blacklisted")),
-                        }
-                        instance.desc.rcon = port;
-                    }
+                if !matches!(instance.instance_state, instance::InstanceState::Normal) {
+                    log::error!("cannot alter server in bad state");
+                    return Err(anyhow!("cannot alter server in bad state"));
                 };
+
+                if let Some(port) = msg.port {
+                    if port != instance.desc.port {
+                        self.port_range.try_take(port)?;
+                        self.port_range.free(instance.desc.port)?;
+                        instance.desc.port = port;
+                    }
+                }
+
+                if let Some(rcon) = msg.rcon {
+                    if rcon != instance.desc.rcon {
+                        self.rcon_range.try_take(rcon)?;
+                        self.rcon_range.free(instance.desc.rcon)?;
+                        instance.desc.rcon = rcon;
+                    }
+                }
+
+                if let Some(max_memory) = msg.max_memory {
+                    instance.desc.max_memory = max_memory;
+                }
+
                 instance.flush();
                 Ok(())
             }

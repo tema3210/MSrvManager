@@ -51,7 +51,10 @@ const InstanceActions = ({instance,deselect}: Props) => {
             ? <Btn onClick={switchServer(false)}>Stop</Btn>
             : <Btn onClick={switchServer(true)}>Start</Btn>
         }<br />
-        <Btn onClick={alterOnClick}>Alter</Btn><br />
+        {(state == "Stopped")
+            ? <><Btn onClick={alterOnClick}>Alter</Btn><br /></> 
+            : null
+        }
         <Btn onClick={onClickDelete}>Delete</Btn><br />
     </div>
 }

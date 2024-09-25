@@ -34,10 +34,3 @@ impl InstanceDescriptor {
         Ok(serde_json::from_reader(file)?)
     }
 }
-
-#[derive(Debug)]
-pub enum ServerChange {
-    MaxMemory(f64),
-    Port(u16),
-    Rcon(u16)
-}

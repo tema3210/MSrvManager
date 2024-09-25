@@ -178,7 +178,7 @@ impl Instance {
                         self.hb()
                     },
                     Err(e) => {
-                        log::error!("cannot start server due to {}",e);
+                        log::error!("cannot start server due to {} - used {:?}",e,&cmd);
                         self.desc.state = model::ServerState::Crashed;
                     }
                 }

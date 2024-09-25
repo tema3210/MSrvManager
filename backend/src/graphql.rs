@@ -98,31 +98,19 @@ impl Mutation {
         ctx: &Context<'cx>,
         name: String,
         max_memory: Option<f64>,
+        up_cmd: Option<String>,
         port: Option<u16>,
         rcon: Option<u16>
     ) -> Result<String,anyhow::Error> {
         let service = ctx.data_unchecked::<native::Service>();
 
-        if let Some(memory) = max_memory {
-            service.send(messages::AlterServer {
-                name: name.clone(),
-                change: model::ServerChange::MaxMemory(memory)
-            }).await??;
-        }
-
-        if let Some(port) = port {
-            service.send(messages::AlterServer {
-                name: name.clone(),
-                change: model::ServerChange::Port(port)
-            }).await??;
-        }
-
-        if let Some(rcon) = rcon {
-            service.send(messages::AlterServer {
-                name: name.clone(),
-                change: model::ServerChange::Rcon(rcon)
-            }).await??;
-        }
+        service.send(messages::AlterServer {
+            name: name.clone(),
+            max_memory,
+            port,
+            rcon,
+            up_cmd
+        }).await??;
 
         Ok(name)
     }
