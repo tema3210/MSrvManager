@@ -42,8 +42,6 @@ const Index = ({}: SSRProps) => {
         }
     `);
 
-    console.log(data);
-
     const [selected,setSelected] = useState<string | null>(null);
 
     if (loading) return <Spinner />;

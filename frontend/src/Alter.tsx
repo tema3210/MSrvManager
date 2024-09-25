@@ -5,7 +5,7 @@ import { InstanceDescriptor } from "./model";
 import { useForm } from "react-hook-form";
 import { ajvResolver } from "@hookform/resolvers/ajv";
 import { fullFormats } from "ajv-formats/dist/formats";
-import { DisplayRange, ErrorP, Label, NumberInput, SInput, TextBig } from "./components/UIComps";
+import { DisplayRange, ErrorP, HomeLink, Label, NumberInput, SInput, TextBig } from "./components/UIComps";
 import Btn from "./components/Button";
 import { NumberInputData } from "./schema_utils";
 import { useMemo } from "react";
@@ -114,7 +114,7 @@ const Alter = ({pageData}: SSRProps) => {
 
     return (
         <form onSubmit={handleSubmit(onSubmit)}>
-            <p><TextBig>Alter {instanceData?.name} page: </TextBig><Btn type="submit" >Change server</Btn></p>
+            <p><HomeLink href="/">Home</HomeLink><TextBig>Alter {instanceData?.name} page: </TextBig><Btn type="submit" >Change server</Btn></p>
             {errorM && <ErrorP>{errorM.message}</ErrorP>}
 
             <Label>Max Memory</Label><br />

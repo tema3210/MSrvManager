@@ -3,7 +3,7 @@ import gql from "graphql-tag";
 import { ajvResolver } from '@hookform/resolvers/ajv';
 import { makeOnLoad, SSRProps } from "./lib";
 import { useForm } from "react-hook-form";
-import { DisplayRange, ErrorP, Label, NumberInput, SInput, TextBig } from "./components/UIComps";
+import { DisplayRange, ErrorP, HomeLink, Label, NumberInput, SInput, TextBig } from "./components/UIComps";
 import { PortsInfo } from "./model";
 import { ChangeEvent, useMemo } from "react";
 import { fullFormats } from "ajv-formats/dist/formats";
@@ -157,7 +157,7 @@ const CreatePage = ({}: SSRProps) => {
     
     return <>
         <form onSubmit={handleSubmit(onSubmit,(e) => console.log("Es:",e))}> 
-            <p><TextBig>Create server page: </TextBig><Btn type="submit" disabled={pLoading} >Create server</Btn></p>
+            <p><HomeLink href="/">Home</HomeLink><TextBig>Create server page: </TextBig><Btn type="submit" disabled={pLoading} >Create server</Btn></p>
 
             <Label>Name</Label><br />
             <SInput type="text" {...register("name")} placeholder="server name" /><br />

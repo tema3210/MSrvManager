@@ -3,10 +3,22 @@ import { Control, Controller } from "react-hook-form";
 import styled from "styled-components";
 
 export const TextBig = styled.span`
-    font-size: 2rem;
+    font-size: 1.7rem;
     color: #db9f30;
     /* margin-left: 2rem; */
     /* width: calc(100% - 2rem); */
+`;
+
+export const HomeLink = styled.a`
+    text-decoration: none;
+    color: #db9f30;
+
+    font-size: 2rem;
+    margin-right: 1rem;
+
+    &:hover {
+        text-decoration: underline;
+    }
 `;
 
 export const SInput = styled.input`

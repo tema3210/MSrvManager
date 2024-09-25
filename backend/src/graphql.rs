@@ -11,7 +11,7 @@ pub struct Query;
 #[Object]
 impl Query {
     async fn app_version(&self) -> &'static str {
-        "0.9"
+        "1.0"
     }
 
     async fn instance<'cx>(&self, ctx: &Context<'cx>, name: String) -> anyhow::Result<Option<model::InstanceDescriptor>> {
