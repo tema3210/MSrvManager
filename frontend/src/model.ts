@@ -6,7 +6,7 @@ export type InstanceDescriptor = {
     state: ServerState,
 
     memory: number | null,
-    maxMemory: number,
+    max_memory: number,
     port: number
 }
 

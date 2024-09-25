@@ -40,7 +40,6 @@ const InstanceActions = ({instance,deselect}: Props) => {
     };
 
     const switchServer = (shouldRun: boolean) => () => {
-        console.log(name,shouldRun)
         ctl({
             variables: {
                 name,
