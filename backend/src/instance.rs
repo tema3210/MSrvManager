@@ -48,6 +48,11 @@ impl Instance {
         Ok(())
     }
 
+    pub fn reload_run_command(&mut self) -> anyhow::Result<()> {
+        self.run_command = Self::read_run_command(&*self.place)?;
+        Ok(())
+    }
+
     fn open_manifest(at: &Path) -> Result<File, std::io::Error> {
         File::options()
             .write(true)    

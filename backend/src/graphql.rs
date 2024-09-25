@@ -49,7 +49,6 @@ impl Query {
 
 pub struct Mutation;
 
-
 #[derive(async_graphql::InputObject)]
 pub struct NewServer {
     name: String,
@@ -111,7 +110,7 @@ impl Mutation {
         max_memory: Option<f64>,
         up_cmd: Option<String>,
         port: Option<u16>,
-    ) -> Result<String,anyhow::Error> {
+    ) -> Result<bool,anyhow::Error> {
         let service = ctx.data_unchecked::<native::Service>();
 
         service.send(messages::AlterServer {
@@ -121,7 +120,7 @@ impl Mutation {
             up_cmd
         }).await??;
 
-        Ok(name)
+        Ok(true)
     }
 
     async fn delete_server<'cx>(&self,ctx: &Context<'cx>,name: String) -> Result<bool,anyhow::Error> {

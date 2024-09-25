@@ -450,6 +450,7 @@ impl Handler<messages::AlterServer> for Servers {
                 }
 
                 instance.flush();
+                instance.reload_run_command()?;
                 Ok(())
             }
             None => Err(anyhow!("cannot change port to blacklisted")),

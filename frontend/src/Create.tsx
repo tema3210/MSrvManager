@@ -3,11 +3,12 @@ import gql from "graphql-tag";
 import { ajvResolver } from '@hookform/resolvers/ajv';
 import { makeOnLoad, SSRProps } from "./lib";
 import { useForm } from "react-hook-form";
-import { ErrorP, Label, NumberInput, SInput, TextBig } from "./components/UIComps";
+import { DisplayRange, ErrorP, Label, NumberInput, SInput, TextBig } from "./components/UIComps";
 import { PortsInfo } from "./model";
 import { ChangeEvent, useMemo } from "react";
 import { fullFormats } from "ajv-formats/dist/formats";
 import Btn from "./components/Button";
+import { NumberInputData } from "./schema_utils";
 
 type NewServerReq = {
     name: string,
@@ -29,7 +30,6 @@ type FormData = Omit<NewServerReq, SpecialHandling> & {
     instanceUpload: {value: FileList, formData: File[]} | null
 };
 
-const DisplayRange = ({range}:{range: [number,number]}) => (<>allowed: ({range[0]};{range[1]})</>)
 
 const CreatePage = ({}: SSRProps) => {
 
@@ -46,25 +46,6 @@ const CreatePage = ({}: SSRProps) => {
 
     const memoryLimits: [number,number] = [1,32];
 
-    const NumberInputData = (minimum: number,maximum: number) => ({
-      type: "object",
-      properties: {
-        value: { 
-          type: "number",
-          minimum,
-          maximum,
-          errorMessage: {
-            type: "Value must be a valid number within range",
-            minimum: `Minimum value is ${minimum}`,
-            maximum: `Maximum value is ${maximum}`
-          }
-        },
-        displayValue: { type: "string" }
-      },
-      required: ["value"],
-    });
-
-    //fix the schema
     const schema = useMemo(() => {
         return {
             type: "object",
