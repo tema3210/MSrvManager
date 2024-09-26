@@ -11,18 +11,7 @@ pub struct Query;
 #[Object]
 impl Query {
     async fn app_version(&self) -> &'static str {
-        "1.0"
-    }
-
-    async fn instance<'cx>(&self, ctx: &Context<'cx>, name: String) -> anyhow::Result<Option<model::InstanceDescriptor>> {
-        let service = ctx.data_unchecked::<native::Service>();
-
-        let data = service.send(messages::Instance { 
-            name,
-            f: |i| i.clone()
-        }).await?;
-        
-        Ok(data)
+        "1.1"
     }
 
     async fn ports_taken<'cx>(&self, ctx: &Context<'cx>) -> anyhow::Result<messages::PortsInfo> {
@@ -33,10 +22,10 @@ impl Query {
     async fn rcons<'cx>(&self, ctx: &Context<'cx>) -> Vec<serde_json::Value> {
         let service = ctx.data_unchecked::<native::Service>();
         match service.send(messages::Instances {
-            f: |i| serde_json::json!({
-                "name": i.name,
-                "rcon": i.rcon
-            }),
+            f: |i| Some(serde_json::json!({
+                "name": i.desc.name,
+                "rcon": i.desc.rcon
+            })),
         }).await {
             Ok(v) => {
                 v
@@ -117,7 +106,16 @@ impl Mutation {
         max_memory: Option<f64>,
         up_cmd: Option<String>,
         port: Option<u16>,
+        password: String
     ) -> Result<bool,anyhow::Error> {
+
+        let pass = ctx.data_unchecked::<Password>();
+
+        if password != pass.0 {
+            log::error!("wrong password: {}",password);
+            return Err(anyhow::anyhow!("wrong password"));
+        }
+
         let service = ctx.data_unchecked::<native::Service>();
 
         service.send(messages::AlterServer {
@@ -149,11 +147,11 @@ impl Mutation {
 
 pub struct Subscription;
 
-type Servers = std::collections::HashMap<String,model::InstanceDescriptor>;
+type Servers = std::collections::HashMap<String,serde_json::Value>;
 
 #[Subscription]
 impl Subscription {
-    async fn servers<'cx>(&self,ctx: &Context<'cx>) -> impl futures::Stream<Item=Servers > + 'cx {
+    async fn servers<'cx>(&self,ctx: &Context<'cx>) -> impl futures::Stream<Item=Servers> + 'cx {
         log::info!("Initializing servers subscription");
         let service = ctx.data_unchecked::<native::Service>();
 
@@ -163,21 +161,79 @@ impl Subscription {
             i
         })
         .then(|_| async {
-            //we send heartbeat - can be put out of sync
-            service.do_send(messages::Tick);
             //then we ask for the data
             match service.send(messages::Instances {
-                f: |i| (i.name.clone(),i.clone())
+                f: |i| Some((i.desc.name.clone(),i.desc.clone(),i.state))
             }).await {
                 Ok(data) => {
                     let data = data
                         .into_iter()
-                        .collect::<std::collections::HashMap<String,model::InstanceDescriptor>>();
+                        .map(|(name,val,state)| {
+                            let res = match state {
+                                instance::InstanceState::Normal => {
+                                    serde_json::json!({
+                                        "data": val,
+                                        "state": "normal"
+                                    })
+                                },
+                                instance::InstanceState::Downloading => {
+                                    serde_json::json!({
+                                        "data": null,
+                                        "state": "downloading"
+                                    })
+                                },
+                                instance::InstanceState::Stopping => {
+                                    serde_json::json!({
+                                        "data": null,
+                                        "state": "stopping"
+                                    })
+                                },
+                            
+                            };
+                            (name,res)
+                        })
+                        .collect::<std::collections::HashMap<String,serde_json::Value>>();
                     data
                 },
                 Err(e) => {
                     log::error!("cannot get instance list: {}",e);
                     std::collections::HashMap::new()
+                }
+            }
+        })
+    }
+
+    async fn instance<'cx>(&self,ctx: &Context<'cx>,name: String) -> impl futures::Stream<Item=Option<serde_json::Value>> + 'cx {
+        let service = ctx.data_unchecked::<native::Service>();
+
+        let name: Arc<str> = Arc::from(name.as_str());
+
+        tokio_stream::wrappers::IntervalStream::new({
+            let mut i = tokio::time::interval(Duration::from_secs(2));
+            i.set_missed_tick_behavior(MissedTickBehavior::Skip);
+            i
+        })
+        .map(move |_| Arc::clone(&name) )
+        .then({
+            move |name| async move {
+
+                //then we ask for the data
+                let data = service.send(messages::Instance {
+                    name: Arc::clone(&name),
+                    f: |i| Some(i.desc.clone())
+                }).await;
+
+                match data {
+                    Ok(Some(data)) => {
+                        Some(serde_json::to_value(data).unwrap())
+                    },
+                    Ok(None) => {
+                        None
+                    },
+                    Err(e) => {
+                        log::error!("cannot get instance {}: {}",name,e);
+                        None
+                    }
                 }
             }
         })

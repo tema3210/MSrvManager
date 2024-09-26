@@ -1,6 +1,6 @@
 import Spinner from "./components/Spinner";
 import { makeOnLoad, SSRProps } from "./lib";
-import { useQuery, gql, useMutation } from '@apollo/client';
+import { useQuery, gql, useMutation, useSubscription } from '@apollo/client';
 import { InstanceDescriptor } from "./model";
 import { useForm } from "react-hook-form";
 import { ajvResolver } from "@hookform/resolvers/ajv";
@@ -18,14 +18,18 @@ type FormData = {
 
 const Alter = ({pageData}: SSRProps) => {
 
-    const { loading, error, data } = useQuery<{instance: InstanceDescriptor | null}>(
+    const { data: ports } = useQuery<{ portsTaken: {portLimits: [number,number]} }>(gql`
+        {
+            portsTaken {
+                portLimits,
+            }
+        }
+    `);
+
+    const { loading, error, data } = useSubscription<{instance: InstanceDescriptor | null}>(
         gql`
-            query Instance($name: String!) {
-                instance(name: $name) {
-                    name
-                    maxMemory
-                    port
-                }
+            subscription Subscription($name: String!) {
+                instance(name: $name)
             }
         `, 
         {
@@ -35,21 +39,13 @@ const Alter = ({pageData}: SSRProps) => {
         }
     );
 
-    const { data: ports } = useQuery<{ portsTaken: {portLimits: [number,number]} }>(gql`
-        {
-            portsTaken {
-                portLimits,
-            }
-        }
-    `);
-
     const instanceData = data?.instance ?? null;
 
     const portLimits = ports?.portsTaken.portLimits ?? [1024,65535];
 
     const [alter,{ error: errorM }] = useMutation<{alterServer: boolean}>(gql`
-        mutation AlterServer($name: String!, $maxMemory: Float, $upCmd: String, $port: Int) {
-            alterServer(name: $name, maxMemory: $maxMemory, upCmd: $upCmd, port: $port)
+        mutation AlterServer($name: String!, $maxMemory: Float, $upCmd: String, $port: Int, $password: String!) {
+            alterServer(name: $name, maxMemory: $maxMemory, upCmd: $upCmd, port: $port, password: $password)
         }
     `);
 
@@ -58,10 +54,12 @@ const Alter = ({pageData}: SSRProps) => {
             maxMemory: number | null,
             upCmd: string | null, 
             port: number | null
-        }
+        },
+        password: string
     ) => {
         return await alter({
             variables: {
+                password,
                 name: pageData.name,
                 ...rest
             }
@@ -96,13 +94,19 @@ const Alter = ({pageData}: SSRProps) => {
 
     const onSubmit = async (fd: FormData) => {
         
+        let password = prompt("Please enter the password to alter this server");
+        
+        if (!password) {
+            return;
+        }
+
         let data = {
             maxMemory: fd.maxMemory.value,
             upCmd: (fd.upCmd === "")? null : fd.upCmd,
             port: fd.port.value
         };
         
-        let res = await mutate(data);
+        let res = await mutate(data, password);
 
         if (res.data?.alterServer) {
             window.location.href = `/`;
@@ -117,8 +121,8 @@ const Alter = ({pageData}: SSRProps) => {
             <p><HomeLink href="/">Home</HomeLink><TextBig>Alter {instanceData?.name} page: </TextBig><Btn type="submit" >Change server</Btn></p>
             {errorM && <ErrorP>{errorM.message}</ErrorP>}
 
-            <Label>Max Memory</Label><br />
-            <NumberInput type="float" name="maxMemory" control={control} placeholder={instanceData?.maxMemory?.toString() ?? "-"} /><br />
+            <Label>Max Memory, (1;32)</Label><br />
+            <NumberInput type="float" name="maxMemory" control={control} placeholder={instanceData?.max_memory?.toString() ?? "-"} /><br />
             {errors.maxMemory && <ErrorP>{errors.maxMemory.message}</ErrorP>}
 
             <Label htmlFor="upCmd">Up Command</Label><br />

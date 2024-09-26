@@ -95,3 +95,32 @@ export const NumberInput = ({name, control, type, placeholder}: NumberInputProps
 }
 
 export const DisplayRange = ({range}:{range: [number,number]}) => (<>allowed: ({range[0]};{range[1]})</>)
+
+type InstanceStateDisplayProps = {
+    serverName: string;
+    state: string;
+};
+
+const InstanceStateContainer = styled.div`
+    margin: 10px 0;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+`;
+
+const ServerName = styled.span`
+    font-weight: bold;
+    color: #333;
+`;
+
+const State = styled.span`
+    color: #db9f30;
+`;
+
+export const InstanceStateDisplay = ({ serverName, state }: InstanceStateDisplayProps) => {
+    return (
+        <InstanceStateContainer>
+            <ServerName>{serverName}</ServerName>: <State>{state}</State>
+        </InstanceStateContainer>
+    );
+};

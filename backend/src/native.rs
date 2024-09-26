@@ -178,7 +178,7 @@ impl Handler<messages::Ports> for Servers {
 
 impl<O, F> Handler<messages::Instances<O, F>> for Servers
 where
-    F: Send + Fn(&model::InstanceDescriptor) -> O,
+    F: Send + Fn(&instance::Instance) -> Option<O>,
     O: Send + 'static,
 {
     type Result = Vec<O>;
@@ -187,24 +187,22 @@ where
         self
             .servers
             .values()
-            .filter(|i| matches!(i.instance_state, instance::InstanceState::Normal))
-            .map(|i| &i.desc)
-            .map(m.f)
+            .filter_map(m.f)
             .collect()
     }
 }
 
 impl<O, F> Handler<messages::Instance<O, F>> for Servers
 where
-    F: Send + Fn(&model::InstanceDescriptor) -> O,
+    F: Send + Fn(&instance::Instance) -> Option<O>,
     O: Send + 'static,
 {
     type Result = Option<O>;
 
     fn handle(&mut self, msg: messages::Instance<O, F>, _: &mut Self::Context) -> Self::Result {
-        let path = self.name_to_path(msg.name);
+        let path = self.name_to_path(msg.name.as_ref());
 
-        self.servers.get(&*path).map(|instance| (msg.f)(&instance.desc))
+        self.servers.get(&*path).map(|instance| (msg.f)(instance)).flatten()
     }
 }
 
@@ -214,7 +212,7 @@ impl Handler<messages::LoadingEnded> for Servers {
     fn handle(&mut self, msg: messages::LoadingEnded, _: &mut Self::Context) -> Self::Result {
         match self.servers.entry(msg.0) {
             std::collections::hash_map::Entry::Occupied(mut e) => {
-                if !matches!(e.get().instance_state, instance::InstanceState::Downloading) {
+                if !matches!(e.get().state, instance::InstanceState::Downloading) {
                     log::error!(
                         "loading ended recieved for a non loading instance at {:?}",
                         e.key()
@@ -230,7 +228,7 @@ impl Handler<messages::LoadingEnded> for Servers {
                     }
                     return;
                 };
-                e.get_mut().instance_state = instance::InstanceState::Normal;
+                e.get_mut().state = instance::InstanceState::Normal;
             }
             std::collections::hash_map::Entry::Vacant(ve) => {
                 let name = &**ve.key();
@@ -394,7 +392,7 @@ impl Handler<messages::SwitchServer> for Servers {
 
         match self.servers.get_mut(&*path) {
             Some(instance) => {
-                if !matches!(instance.instance_state, instance::InstanceState::Normal) {
+                if !matches!(instance.state, instance::InstanceState::Normal) {
                     log::error!("cannot switch server in bad state");
                     return Err(anyhow!("cannot switch server in bad state"));
                 }
@@ -424,7 +422,7 @@ impl Handler<messages::AlterServer> for Servers {
 
         match self.servers.get_mut((&*path).into()) {
             Some(instance) => {
-                if !matches!(instance.instance_state, instance::InstanceState::Normal) {
+                if !matches!(instance.state, instance::InstanceState::Normal) {
                     log::error!("cannot alter server in bad state");
                     return Err(anyhow!("cannot alter server in bad state"));
                 };
@@ -464,7 +462,7 @@ impl Handler<messages::InstanceStopped> for Servers {
     fn handle(&mut self, msg: messages::InstanceStopped, _: &mut Self::Context) -> Self::Result {
         match self.servers.entry(msg.0) {
             std::collections::hash_map::Entry::Occupied(mut e) => {
-                if !matches!(e.get().instance_state, instance::InstanceState::Stopping) {
+                if !matches!(e.get().state, instance::InstanceState::Stopping) {
                     log::error!("instance stopped message for a not stopping target");
                     return;
                 };
@@ -496,7 +494,7 @@ impl Handler<messages::DeleteServer> for Servers {
 
         match self.servers.entry(path.into()) {
             std::collections::hash_map::Entry::Occupied(e) => {
-                if !matches!(e.get().instance_state, instance::InstanceState::Normal) {
+                if !matches!(e.get().state, instance::InstanceState::Normal) {
                     return Err(anyhow!("Resource is in a bad state"));
                 }
                 let mut instance = e.remove();

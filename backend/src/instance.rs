@@ -7,7 +7,7 @@ use crate::*;
 use anyhow::anyhow;
 use std::process::Command;
 
-#[derive(Debug)]
+#[derive(Debug,Clone,Copy)]
 pub enum InstanceState {
     Normal,
     Downloading,
@@ -22,7 +22,7 @@ pub enum InstanceState {
 #[derive(Debug)]
 pub struct Instance {
     pub desc: model::InstanceDescriptor,
-    pub instance_state: InstanceState,
+    pub state: InstanceState,
     /// should point at directory where Instance is located
     pub place: Arc<Path>,
 
@@ -98,7 +98,7 @@ impl Instance {
 
         Ok(Instance {
             desc,
-            instance_state: state,
+            state,
             process: None,
             place,
             manifest,
@@ -119,7 +119,7 @@ impl Instance {
 
         let run_command = Self::read_run_command(&*place)?;
 
-        Ok(Self {desc, place, manifest, run_command, process: None, instance_state: InstanceState::Normal})
+        Ok(Self {desc, place, manifest, run_command, process: None, state: InstanceState::Normal})
     }
 
     // we don't have anything to do reasonably in case of failure
@@ -132,7 +132,7 @@ impl Instance {
 
     pub fn hb(&mut self) {
         
-        if !matches!(self.instance_state,InstanceState::Normal) {
+        if !matches!(self.state,InstanceState::Normal) {
             return
         }
 
@@ -159,7 +159,7 @@ impl Instance {
     }
 
     pub fn start(&mut self) {
-        if !matches!(self.instance_state,InstanceState::Normal) {
+        if !matches!(self.state,InstanceState::Normal) {
             return
         }
         match self.process {
@@ -240,18 +240,18 @@ impl Instance {
         self.desc.state = model::ServerState::Stopped;
         self.desc.memory = None;
         self.flush();
-        self.instance_state = InstanceState::Normal;
+        self.state = InstanceState::Normal;
     }
 
     pub fn stop_async(&mut self, addr: native::Service) {
         log::info!("stopping server async {:?}", &self.place);
 
-        if !matches!(self.instance_state,InstanceState::Normal) {
+        if !matches!(self.state,InstanceState::Normal) {
             return
         }
 
         if let Some(ch) = self.process.take() {
-            self.instance_state = InstanceState::Stopping;
+            self.state = InstanceState::Stopping;
             let name = self.place.clone();
             thread::spawn(move || {
                 Self::stop_inner(ch, &name);
@@ -267,7 +267,7 @@ impl Instance {
     pub fn stop(&mut self) {
         log::info!("stopping server {:?}", &self.place);
 
-        if !matches!(self.instance_state,InstanceState::Normal) {
+        if !matches!(self.state,InstanceState::Normal) {
             return
         }     
 

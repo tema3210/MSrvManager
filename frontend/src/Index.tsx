@@ -7,7 +7,7 @@ import Btn from "./components/Button";
 
 import { gql, useSubscription, useQuery } from "@apollo/client";
 import styled from "styled-components";
-import { TextBig } from "./components/UIComps";
+import { InstanceStateDisplay, TextBig } from "./components/UIComps";
 import Spinner from "./components/Spinner";
 
 const Wrapper = styled.div`
@@ -28,6 +28,13 @@ const Footer = styled.div`
     height: 3rem;
 `;
 
+type ServerData = {
+    servers: Record<string,{
+        data: InstanceDescriptor,
+        state: string
+    }>
+}
+
 const Index = ({}: SSRProps) => {
 
     const { data: AVdata, loading: AVloading } = useQuery(gql`
@@ -36,7 +43,7 @@ const Index = ({}: SSRProps) => {
         }
     `);
 
-    const { data, loading, error } = useSubscription<{servers: Record<string,InstanceDescriptor>}>(gql`
+    const { data, loading, error } = useSubscription<ServerData>(gql`
         subscription {
             servers
         }
@@ -56,25 +63,33 @@ const Index = ({}: SSRProps) => {
             <TextBig>We have these servers:</TextBig>
             {
                 Object.entries((data?.servers ?? {}))
-                    .map(([name,desc]) => (
-                        <InstanceDisplay
-                            key={name}
-                            instance={desc}
-                            selected={selected === name}
-                            setSelected={
-                                (selected === name)
-                                    ? () => setSelected(null)
-                                    : () => setSelected(name)
-                            }
-                        />
-                    ))
+                    .map(([name,{data,state}]) => {
+                        switch (state) {
+                            case "normal":
+                                return (
+                                    <InstanceDisplay
+                                        key={name}
+                                        instance={data}
+                                        selected={selected === name}
+                                        setSelected={
+                                            (selected === name)
+                                                ? () => setSelected(null)
+                                                : () => setSelected(name)
+                                        }
+                                    />
+                                );
+                            default:
+                                return <InstanceStateDisplay serverName={name} state={state}/>
+                        }1
+                        
+                    })
             }
         </InstanceWrapper>
         <InstanceWrapper width="25%">
             <TextBig>Actions:</TextBig><br />
             <Btn onClick={createOnClick}>Create Server =&gt;</Btn>
             {
-                (selected && data?.servers?.[selected]) ? <InstanceActions instance={data.servers[selected]} deselect={() => setSelected(null)}/> : null
+                (selected && data?.servers?.[selected].data) ? <InstanceActions instance={data.servers[selected].data} deselect={() => setSelected(null)}/> : null
             }
         </InstanceWrapper>
         

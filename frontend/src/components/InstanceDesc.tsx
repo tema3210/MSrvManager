@@ -6,7 +6,6 @@ const Inner = styled.div<{selected: boolean}>`
     padding: 16px;
     border-radius: 8px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    cursor: pointer;
     transition: background-color 0.3s;
 `;
 
@@ -14,6 +13,8 @@ const Title = styled.h2`
     margin: 0;
     font-size: 1.5em;
     color: #333;
+    user-select: none;
+    cursor: pointer;
 `;
 
 const Info = styled.div`
@@ -38,14 +39,14 @@ const Desc = ({instance, selected, setSelected}: Props) => {
     const {name, state, memory, max_memory, port} = instance;
 
     return (
-        <Inner onClick={setSelected} selected={selected}>
-            <Title>{name}</Title>
+        <Inner selected={selected}>
+            <Title onClick={setSelected}>{name}</Title>
             <Info>
                 <InfoItem>State: {state}</InfoItem>
                 <InfoItem>Memory usage: {memory ?? 'N/A'}</InfoItem>
                 <InfoItem>Max memory: {max_memory} GB</InfoItem>
                 <InfoItem>Port: {port}</InfoItem>
-                <InfoItem>Mods URL: <a>{instance.mods}</a></InfoItem>
+                <InfoItem>Mods URL: <a href={instance.mods}>{instance.mods}</a></InfoItem>
             </Info>
         </Inner>
     );

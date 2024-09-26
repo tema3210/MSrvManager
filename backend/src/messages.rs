@@ -8,15 +8,23 @@ use crate::*;
 
 #[derive(Message,Debug)]
 #[rtype(result = "Vec<O>")]
-pub struct Instances<O: Send + 'static,F: Send + Fn(&model::InstanceDescriptor) -> O>{
-    pub f: F
+pub struct Instances<O,F>
+    where
+        O: Send + 'static,
+        F: Send + Fn(&instance::Instance) -> Option<O>,
+{
+    pub f: F,
 }
 
 #[derive(Message,Debug)]
 #[rtype(result = "Option<O>")]
-pub struct Instance<O: Send + 'static,F: Send + Fn(&model::InstanceDescriptor) -> O>{
-    pub name: String,
-    pub f: F
+pub struct Instance<O,F>
+    where
+        O: Send + 'static,
+        F: Send + Fn(&instance::Instance) -> Option<O>,
+{
+    pub name: Arc<str>,
+    pub f: F,
 }
 
 #[derive(SimpleObject)]

@@ -170,6 +170,16 @@ async fn main() -> std::io::Result<()> {
 
     let native = native::Servers::init(srvrs_dir,rcons,ports).expect("cannot init native service").start();
 
+    let native_clone = native.clone();
+    
+    std::thread::spawn(move || {
+        let interval = std::time::Duration::from_secs(5);
+        loop {
+            std::thread::sleep(interval);
+            native_clone.do_send(messages::Tick);
+        }
+    });
+
     let schema = Arc::new(graphql::schema(native,password));
 
     log::info!("starting HTTP server on port {port}");
