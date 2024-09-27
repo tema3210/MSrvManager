@@ -7,6 +7,7 @@ const Inner = styled.div<{selected: boolean}>`
     border-radius: 8px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     transition: background-color 0.3s;
+    margin-bottom: 16px;
 `;
 
 const Title = styled.h2`
@@ -35,12 +36,23 @@ type Props = {
     setSelected: () => void
 }
 
+const RTInner = styled.svg`
+    width: 1.5rem;
+    height: 1.5rem;
+    margin-right: 0.5rem;
+`;
+
+const RightTriangle = () => (<RTInner viewBox="0 0 100 100" >
+    <polygon points="0,0 0,100 100,50" fill="#4e812b" />
+</RTInner>)
+
+
 const Desc = ({instance, selected, setSelected}: Props) => {
     const {name, state, memory, max_memory, port} = instance;
 
     return (
         <Inner selected={selected}>
-            <Title onClick={setSelected}>{name}</Title>
+            <Title onClick={setSelected}><RightTriangle />{name}</Title>
             <Info>
                 <InfoItem>State: {state}</InfoItem>
                 <InfoItem>Memory usage: {memory ?? 'N/A'}</InfoItem>

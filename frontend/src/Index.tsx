@@ -20,12 +20,12 @@ const InstanceWrapper = styled.div<{width: string}>`
     margin-left: 1rem;
     margin-right: 1rem;
     width: ${({width}) => `calc(${width} - 2rem)`};
+
 `;
 
-const Footer = styled.div`
-    position: absolute;
-    bottom: 0;
-    height: 3rem;
+const ListWrapper = styled.div`
+    height: 90vh;
+    overflow-y: scroll;
 `;
 
 type ServerData = {
@@ -60,30 +60,33 @@ const Index = ({}: SSRProps) => {
     
     return <Wrapper>
         <InstanceWrapper width="75%">
-            <TextBig>We have these servers:</TextBig>
-            {
-                Object.entries((data?.servers ?? {}))
-                    .map(([name,{data,state}]) => {
-                        switch (state) {
-                            case "normal":
-                                return (
-                                    <InstanceDisplay
-                                        key={name}
-                                        instance={data}
-                                        selected={selected === name}
-                                        setSelected={
-                                            (selected === name)
-                                                ? () => setSelected(null)
-                                                : () => setSelected(name)
-                                        }
-                                    />
-                                );
-                            default:
-                                return <InstanceStateDisplay serverName={name} state={state}/>
-                        }1
-                        
-                    })
-            }
+            <TextBig>Version: {(AVloading)? "-" : AVdata.appVersion }; We have these servers:</TextBig>
+            <ListWrapper>
+                {
+                    Object.entries((data?.servers ?? {}))
+                        .sort(([a], [b]) => a.localeCompare(b))
+                        .map(([name,{data,state}]) => {
+                            switch (state) {
+                                case "normal":
+                                    return (
+                                        <InstanceDisplay
+                                            key={name}
+                                            instance={data}
+                                            selected={selected === name}
+                                            setSelected={
+                                                (selected === name)
+                                                    ? () => setSelected(null)
+                                                    : () => setSelected(name)
+                                            }
+                                        />
+                                    );
+                                default:
+                                    return <InstanceStateDisplay serverName={name} state={state}/>
+                            }1
+                            
+                        })
+                }
+            </ListWrapper>
         </InstanceWrapper>
         <InstanceWrapper width="25%">
             <TextBig>Actions:</TextBig><br />
@@ -92,8 +95,6 @@ const Index = ({}: SSRProps) => {
                 (selected && data?.servers?.[selected].data) ? <InstanceActions instance={data.servers[selected].data} deselect={() => setSelected(null)}/> : null
             }
         </InstanceWrapper>
-        
-        <Footer><TextBig>Version: {(AVloading)? "-" : AVdata.appVersion }</TextBig></Footer>
     </Wrapper>
 }
 
