@@ -290,6 +290,7 @@ impl Instance {
             None => {}
         }
     }
+    
     /// it only disposed process, not kills its
     fn dispose(mut child: Child) {
         std::thread::spawn(move || {

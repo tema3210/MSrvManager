@@ -126,7 +126,7 @@ async fn main() -> std::io::Result<()> {
         .service(index)
         .service(create)
         .service(alter)
-        .service(graphiql)
+        // .service(graphiql)
         
     };
 

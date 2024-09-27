@@ -91,22 +91,28 @@ impl Servers {
                     let e_path = e.path();
                     if e_path.is_dir() {
                         let arc_path: Arc<Path> = e_path.into();
-                        if let Ok(instance) = instance::Instance::load(Arc::clone(&arc_path)) {
-                            let desc = &instance.desc;
 
-                            if let Err(e) = port_range.try_take(desc.port) {
-                                log::error!("a servers {} port {}", &desc.name, e);
-                                return None;
+                        match instance::Instance::load(Arc::clone(&arc_path)) {
+                            Ok(instance) => {
+                                let desc = &instance.desc;
+
+                                if let Err(e) = port_range.try_take(desc.port) {
+                                    log::error!("a servers {} port {} is taken", &desc.name, e);
+                                    return None;
+                                }
+
+                                if let Err(e) = rcon_range.try_take(desc.rcon) {
+                                    log::error!("a servers {} rcon port {} is taken", &desc.name, e);
+                                    return None;
+                                }
+
+                                Some((arc_path.clone(), instance))
+                            },
+                            Err(e) => {
+                                log::error!("couldn't load server at {:?} due to {:?}, nuking", &arc_path, e);
+                                let _ = std::fs::remove_dir_all(arc_path.as_ref());
+                                None
                             }
-
-                            if let Err(e) = rcon_range.try_take(desc.rcon) {
-                                log::error!("a servers {} rcon port {}", &desc.name, e);
-                                return None;
-                            }
-
-                            Some((arc_path.clone(), instance))
-                        } else {
-                            None
                         }
                     } else {
                         None
