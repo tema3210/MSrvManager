@@ -87,8 +87,15 @@ impl Mutation {
 
         let server_jar: PathBuf = data.server_jar.parse()?;
 
-        if !server_jar.ends_with(".jar") {
-            return Err(anyhow::anyhow!("server_jar must be a path to a .jar file"));
+        match server_jar.extension() {
+            Some(ext) => {
+                if ext != "jar" {
+                    return Err(anyhow::anyhow!("server_jar must be a path to a .jar file"));
+                }
+            },
+            None => {
+                return Err(anyhow::anyhow!("server_jar must be a path to a .jar file"));
+            }
         }
 
         if server_jar.is_absolute() {

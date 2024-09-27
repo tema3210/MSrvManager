@@ -33,6 +33,8 @@ pub struct Instance {
 
 pub const MANIFEST_NAME: &str = "msrvDesc.json";
 
+const PATCH_SH_PATH: &str = "/app/patch.sh";
+
 pub const SERVER_PROPERTIES_FILE: &str = "server.properties";
 
 impl Instance {
@@ -55,9 +57,7 @@ impl Instance {
 
     pub fn patch_server_props(&self) -> anyhow::Result<()> {
         let output = Command::new("sh")
-            .current_dir(self.place.as_ref())
-            .arg("-c")
-            .arg("patch_server_props.sh")
+            .arg(PATCH_SH_PATH)
             .env("MPORT", self.desc.port.to_string())
             .env("MRCON", self.desc.rcon.to_string())
             .env("MAXMEMORY", format!("{}G", self.desc.max_memory))
@@ -65,10 +65,6 @@ impl Instance {
             .output()?;
 
         if !output.status.success() {
-            log::error!(
-                "patch_server_props script failed with status: {}",
-                output.status
-            );
             Err(anyhow!(
                 "patch_server_props script failed with status: {}",
                 output.status

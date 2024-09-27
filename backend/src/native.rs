@@ -1,7 +1,7 @@
 use std::{
     collections::HashMap,
     fs::{File, Permissions},
-    io::{copy, Write},
+    io::copy,
     ops::Range,
     path::{Path, PathBuf},
 };
@@ -234,6 +234,18 @@ impl Handler<messages::LoadingEnded> for Servers {
                     }
                     return;
                 };
+
+                let props_path = e.get().place.join("server.properties");
+                if !props_path.exists() {
+                    let instance = e.remove();
+                    let name = &instance.desc.name;
+                    log::error!("server properties file not found for {name}");
+                    if let Err(e) = self.nuke(&instance) {
+                        log::error!("cannot nuke {name}: {e}")
+                    }
+                    return;
+                }
+
                 if let Err(error) = e.get_mut().patch_server_props() {
                     let instance = e.remove();
                     let name = &instance.desc.name;
