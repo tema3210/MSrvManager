@@ -166,8 +166,10 @@ impl Instance {
 
                 let mut cmd = Command::new("java");
                 cmd.current_dir(self.place.join(self.desc.server_jar.parent().unwrap()))
-                    .arg(format!("-Xmx{}G", self.desc.max_memory))
-                    .arg(format!("-jar {}", self.desc.server_jar.to_string_lossy()));
+                    .arg(format!("-Xmx{}M", (self.desc.max_memory * 1024.0) as u64))
+                    .arg("-jar")
+                    .arg(self.desc.server_jar.as_os_str())
+                ;
 
                 match cmd.spawn() {
                     Ok(ch) => {
