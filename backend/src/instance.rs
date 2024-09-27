@@ -36,13 +36,17 @@ pub const MANIFEST_NAME: &str = "msrvDesc.json";
 
 pub const COMMAND_FILE_NAME: &str = "run.command";
 
+pub const SERVER_PROPERTIES_FILE: &str = "server.properties";
+
 impl Instance {
     /// should create dir and apropriate manifest files there
     pub fn prepare<P: AsRef<Path>>(at: P) -> anyhow::Result<()> {
-        log::info!("preparing dir for server at {:?}",at.as_ref());
+        log::trace!("preparing dir for server at {:?}",at.as_ref());
         std::fs::create_dir(&at)?;
 
         std::fs::File::create_new(at.as_ref().join(instance::MANIFEST_NAME))?;
+
+
         std::fs::File::create_new(at.as_ref().join(instance::COMMAND_FILE_NAME))?;
 
         Ok(())
@@ -59,6 +63,33 @@ impl Instance {
             .read(true)
             .open(at.join(MANIFEST_NAME))
     }
+
+    pub fn patch_server_props(&self) -> anyhow::Result<()> {
+        let output = Command::new("sh")
+            .current_dir(self.place.as_ref())
+            .arg("-c")
+            .arg("patch_server_props.sh")
+            .env("MPORT", self.desc.port.to_string())
+            .env("MRCON", self.desc.rcon.to_string())
+            .env("MAXMEMORY", format!("{}G", self.desc.max_memory))
+            .env("PROPERTIES_FILE", SERVER_PROPERTIES_FILE)
+            .output()?;
+
+        if !output.status.success() {
+            log::error!(
+                "patch_server_props script failed with status: {}",
+                output.status
+            );
+            Err(anyhow!(
+                "patch_server_props script failed with status: {}",
+                output.status
+            ))
+        } else {
+            log::trace!("patch_server_props script executed successfully");
+            Ok(())
+        }
+    }
+
 
     fn read_run_command(at: &Path) -> anyhow::Result<Command> {
         let mut cmd_file = File::open(at.join(COMMAND_FILE_NAME))?;
@@ -170,11 +201,25 @@ impl Instance {
             None => {
                 log::info!("starting server {:?}", &self.place);
 
+                match self.patch_server_props() {
+                    Ok(_) => {},
+                    Err(e) => {
+                        log::error!("cannot patch server properties due to {}",e);
+                        self.desc.state = model::ServerState::Crashed;
+                        return
+                    }
+                }
+
                 let cmd = self.run_command
                     .env("MPORT", self.desc.port.to_string())
                     .env("MRCON", self.desc.rcon.to_string())
                     .env("MAXMEMORY", format!("{}G", self.desc.max_memory))
-                    .env("MINMEMORY", "1G");
+                    .env("PROPERTIES_FILE",SERVER_PROPERTIES_FILE);
+
+                let mut cmd = Command::new("java");
+                cmd.current_dir(self.place.join(self.desc.server_jar.parent().unwrap()))
+                    .arg(format!("-Xmx{}G", self.desc.max_memory))
+                    .arg(format!("-jar {}", self.desc.server_jar.to_string_lossy()));
 
                 match cmd.spawn() {
                     Ok(ch) => {

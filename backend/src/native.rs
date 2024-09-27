@@ -234,6 +234,15 @@ impl Handler<messages::LoadingEnded> for Servers {
                     }
                     return;
                 };
+                if let Err(error) = e.get_mut().patch_server_props() {
+                    let instance = e.remove();
+                    let name = &instance.desc.name;
+                    log::error!("couldn't patch {name} props due to {error}");
+                    if let Err(e) = self.nuke(&instance) {
+                        log::error!("cannot nuke {name}: {e}")
+                    }
+                    return;
+                }
                 e.get_mut().state = instance::InstanceState::Normal;
             }
             std::collections::hash_map::Entry::Vacant(ve) => {
@@ -254,7 +263,7 @@ impl Handler<messages::NewServer> for Servers {
             return Err(anyhow!("server name is already in use"));
         }
 
-        log::info!("creating server with {:?}", &msg);
+        log::trace!("creating server: {:?}", &msg);
 
         match (
             self.rcon_range.try_take(msg.rcon),
@@ -276,6 +285,7 @@ impl Handler<messages::NewServer> for Servers {
         log::info!("create server at {:?}", &*path);
 
         let desc: model::InstanceDescriptor = model::InstanceDescriptor {
+            server_jar: msg.server_jar,
             name: msg.name,
             mods: msg.url,
             state: model::ServerState::Stopped,
@@ -358,7 +368,7 @@ impl Handler<messages::NewServer> for Servers {
                         if let Some(mode) = archive_file.unix_mode() {
                             let permissions = <Permissions as std::os::unix::fs::PermissionsExt>::from_mode(mode);
                             std::fs::set_permissions(&outpath, permissions.clone())?;
-                            log::info!("set permissions {:?} for {:?}", permissions, &*outpath);
+                            log::trace!("set permissions {:?} for {:?}", permissions, &*outpath);
                         }
 
                         log::info!("copied {:?}", &*outpath);

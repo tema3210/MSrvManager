@@ -1,8 +1,8 @@
-use std::fs::File;
+use std::{fs::File, path::PathBuf};
 
 use serde::{Deserialize,Serialize};
 
-use async_graphql::{Enum, SimpleObject};
+use async_graphql::Enum;
 
 #[derive(Copy, Clone, PartialEq, Eq, Enum,Deserialize, Serialize,Debug)]
 pub enum ServerState {
@@ -11,7 +11,7 @@ pub enum ServerState {
     Crashed
 }
 
-#[derive(SimpleObject,Clone, Deserialize, Serialize,Debug)]
+#[derive(Clone, Deserialize, Serialize,Debug)]
 pub struct InstanceDescriptor {
     pub name: String,
     pub mods: url::Url,
@@ -21,7 +21,8 @@ pub struct InstanceDescriptor {
     // in GB
     pub max_memory: f64,
     pub port: u16,
-    #[graphql(skip)]
+
+    pub server_jar: PathBuf,
     pub rcon: u16,
 }
 

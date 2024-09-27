@@ -8,6 +8,7 @@ const Inner = styled.div<{selected: boolean}>`
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     transition: background-color 0.3s;
     margin-bottom: 16px;
+    margin-right: 12px;
 `;
 
 const Title = styled.h2`

@@ -22,6 +22,7 @@ EXPOSE ${PORT}
 RUN mkdir ${DATA_FOLDER}
 WORKDIR /app
 COPY .env .env
+COPY patch_server_props.sh patch.sh
 COPY msrvmanager app
 COPY static static
 CMD ["./app"]

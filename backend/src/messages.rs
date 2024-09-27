@@ -43,7 +43,10 @@ pub struct Ports;
 #[rtype(result = "anyhow::Result<()>")]
 pub struct NewServer {
     pub name: String,
+
+    pub server_jar: PathBuf,
     pub up_cmd: String,
+
     pub setup_cmd: Option<String>,
     pub url: url::Url,
     pub instance_upload: UploadValue,

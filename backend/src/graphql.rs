@@ -41,7 +41,11 @@ pub struct Mutation;
 #[derive(async_graphql::InputObject)]
 pub struct NewServer {
     name: String,
+
     up_cmd: String,
+    /// path to jar of server inside of upload
+    server_jar: String,
+
     setup_cmd: Option<String>,
     url: url::Url,
     max_memory: f64,
@@ -82,11 +86,22 @@ impl Mutation {
             return Err(anyhow::anyhow!("wrong password"));
         }
 
+        let server_jar: PathBuf = data.server_jar.parse()?;
+
+        if !server_jar.ends_with(".jar") {
+            return Err(anyhow::anyhow!("server_jar must be a path to a .jar file"));
+        }
+
+        if server_jar.is_absolute() {
+            return Err(anyhow::anyhow!("server_jar must be a relative path"));
+        }
+
         let val = data.instance_upload.value(ctx)?;
         
         service.send(messages::NewServer {
             name: data.name,
             up_cmd: data.up_cmd,
+            server_jar,
             setup_cmd: data.setup_cmd,
             url: data.url,
             max_memory: data.max_memory,
