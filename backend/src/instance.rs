@@ -1,4 +1,4 @@
-use std::{fs::File, io::{ErrorKind, Read, Seek, SeekFrom, Write}, path::Path, process::Child, thread};
+use std::{fs::File, io::{ErrorKind, Seek, SeekFrom, Write}, path::Path, process::Child, thread};
 
 use wait_timeout::ChildExt;
 
@@ -27,14 +27,11 @@ pub struct Instance {
     pub place: Arc<Path>,
 
     manifest: std::fs::File,
-    run_command: std::process::Command,
 
     process: Option<std::process::Child>
 }
 
 pub const MANIFEST_NAME: &str = "msrvDesc.json";
-
-pub const COMMAND_FILE_NAME: &str = "run.command";
 
 pub const SERVER_PROPERTIES_FILE: &str = "server.properties";
 
@@ -46,14 +43,6 @@ impl Instance {
 
         std::fs::File::create_new(at.as_ref().join(instance::MANIFEST_NAME))?;
 
-
-        std::fs::File::create_new(at.as_ref().join(instance::COMMAND_FILE_NAME))?;
-
-        Ok(())
-    }
-
-    pub fn reload_run_command(&mut self) -> anyhow::Result<()> {
-        self.run_command = Self::read_run_command(&*self.place)?;
         Ok(())
     }
 
@@ -72,7 +61,7 @@ impl Instance {
             .env("MPORT", self.desc.port.to_string())
             .env("MRCON", self.desc.rcon.to_string())
             .env("MAXMEMORY", format!("{}G", self.desc.max_memory))
-            .env("PROPERTIES_FILE", SERVER_PROPERTIES_FILE)
+            .env("PROPERTIES_FILE", self.place.join(SERVER_PROPERTIES_FILE))
             .output()?;
 
         if !output.status.success() {
@@ -90,32 +79,6 @@ impl Instance {
         }
     }
 
-
-    fn read_run_command(at: &Path) -> anyhow::Result<Command> {
-        let mut cmd_file = File::open(at.join(COMMAND_FILE_NAME))?;
-        let mut run_command = String::new();
-
-        cmd_file.read_to_string(&mut run_command)?;
-
-        let parts: Vec<&str> = run_command.trim().split_whitespace().collect();
-        if parts.is_empty() {
-            return Err(anyhow!("run.command file is empty or invalid"));
-        }
-
-        let mut run_command = Command::new(parts[0]);
-        if parts.len() > 1 {
-            run_command.args(&parts[1..]);
-        }
-
-        run_command
-            .current_dir(at)
-            // .stdout(std::process::Stdio::piped())
-            // .stderr(std::process::Stdio::piped())
-            .stdin(std::process::Stdio::piped());
-
-        Ok(run_command)
-    }
-
     pub fn create(place: Arc<Path>, desc: model::InstanceDescriptor,state: InstanceState) -> anyhow::Result<Self> {
         if !place.is_dir() {
             return Err(anyhow!("create should be called on dir"));
@@ -125,15 +88,12 @@ impl Instance {
 
         desc.to_file(&mut manifest)?;
 
-        let run_command = Self::read_run_command(&*place)?;
-
         Ok(Instance {
             desc,
             state,
             process: None,
             place,
             manifest,
-            run_command
         })
     }
 
@@ -148,9 +108,7 @@ impl Instance {
         let mut manifest = Self::open_manifest(&*place)?;
         let desc: model::InstanceDescriptor = model::InstanceDescriptor::from_file(&mut manifest)?;
 
-        let run_command = Self::read_run_command(&*place)?;
-
-        Ok(Self {desc, place, manifest, run_command, process: None, state: InstanceState::Normal})
+        Ok(Self {desc, place, manifest, process: None, state: InstanceState::Normal})
     }
 
     // we don't have anything to do reasonably in case of failure
@@ -209,12 +167,6 @@ impl Instance {
                         return
                     }
                 }
-
-                let cmd = self.run_command
-                    .env("MPORT", self.desc.port.to_string())
-                    .env("MRCON", self.desc.rcon.to_string())
-                    .env("MAXMEMORY", format!("{}G", self.desc.max_memory))
-                    .env("PROPERTIES_FILE",SERVER_PROPERTIES_FILE);
 
                 let mut cmd = Command::new("java");
                 cmd.current_dir(self.place.join(self.desc.server_jar.parent().unwrap()))

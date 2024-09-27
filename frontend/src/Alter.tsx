@@ -12,7 +12,6 @@ import { useMemo } from "react";
 
 type FormData = {
     maxMemory: {value: number, displayValue: string};
-    upCmd: string | null;
     port: {value: number, displayValue: string};
 };
 
@@ -52,7 +51,6 @@ const Alter = ({pageData}: SSRProps) => {
     const mutate = async (
         rest: {
             maxMemory: number | null,
-            upCmd: string | null, 
             port: number | null
         },
         password: string
@@ -86,10 +84,7 @@ const Alter = ({pageData}: SSRProps) => {
     } = useForm<FormData>({
         resolver: ajvResolver(schema as any, {
             formats: fullFormats
-        }),
-        defaultValues: {
-            upCmd: null
-        }
+        })
     });
 
     const onSubmit = async (fd: FormData) => {
@@ -102,7 +97,6 @@ const Alter = ({pageData}: SSRProps) => {
 
         let data = {
             maxMemory: fd.maxMemory.value,
-            upCmd: (fd.upCmd === "")? null : fd.upCmd,
             port: fd.port.value
         };
         
@@ -125,9 +119,6 @@ const Alter = ({pageData}: SSRProps) => {
             <NumberInput type="float" name="maxMemory" control={control} placeholder={instanceData?.max_memory?.toString() ?? "-"} /><br />
             {errors.maxMemory && <ErrorP>{errors.maxMemory.message}</ErrorP>}
 
-            <Label htmlFor="upCmd">Up Command</Label><br />
-            <SInput id="upCmd" type="text" {...register("upCmd")} /><br />
-            {errors.upCmd && <ErrorP>{errors.upCmd.message}</ErrorP>}
             
             <Label>Port, <DisplayRange range={portLimits}/></Label><br />
             <NumberInput type="int" name="port" control={control} placeholder={instanceData?.port?.toString() ?? "-"} /><br />

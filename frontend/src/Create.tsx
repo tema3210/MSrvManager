@@ -12,7 +12,7 @@ import { NumberInputData } from "./schema_utils";
 
 type NewServerReq = {
     name: string,
-    upCmd: string,
+
     setupCmd: string | null,
     serverJar: string,
 
@@ -101,7 +101,6 @@ const CreatePage = ({}: SSRProps) => {
       }),
       defaultValues: {
         name: "",
-        upCmd: "",
         serverJar: "",
         setupCmd: null,
         url: "",
@@ -173,10 +172,6 @@ const CreatePage = ({}: SSRProps) => {
             <Label>Name</Label><br />
             <SInput type="text" {...register("name")} placeholder="server name" /><br />
             {errors.name && <ErrorP>{errors.name.message}</ErrorP>}
-
-            <Label>Command to launch the instance</Label><br />
-            <SInput type="text" {...register("upCmd")} placeholder="command by which it can be launched" /><br />
-            {errors.upCmd && <ErrorP>{errors.upCmd.message}</ErrorP>}
 
             <Label>Path to jar in archive to be executed as a server</Label><br />
             <SInput type="text" {...register("serverJar")} placeholder="path" /><br />

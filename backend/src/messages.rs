@@ -45,7 +45,6 @@ pub struct NewServer {
     pub name: String,
 
     pub server_jar: PathBuf,
-    pub up_cmd: String,
 
     pub setup_cmd: Option<String>,
     pub url: url::Url,
@@ -60,13 +59,13 @@ impl std::fmt::Debug for NewServer {
         f
             .debug_struct("NewServer")
             .field("name", &self.name)
-            .field("up_cmd", &self.up_cmd)
             .field("setup_cmd", &self.setup_cmd)
             .field("url", &self.url)
             .field("instance_upload", &"UploadValue")
             .field("max_memory", &self.max_memory)
             .field("port", &self.port)
             .field("rcon", &self.rcon)
+            .field("server_jar", &self.server_jar)
             .finish()
     }
 }
@@ -89,8 +88,7 @@ pub struct SwitchServer {
 pub struct AlterServer {
     pub name: String,
     pub max_memory: Option<f64>,
-    pub port: Option<u16>,
-    pub up_cmd: Option<String>
+    pub port: Option<u16>
 }
 
 #[derive(Message,Debug)]

@@ -42,7 +42,6 @@ pub struct Mutation;
 pub struct NewServer {
     name: String,
 
-    up_cmd: String,
     /// path to jar of server inside of upload
     server_jar: String,
 
@@ -100,7 +99,6 @@ impl Mutation {
         
         service.send(messages::NewServer {
             name: data.name,
-            up_cmd: data.up_cmd,
             server_jar,
             setup_cmd: data.setup_cmd,
             url: data.url,
@@ -119,7 +117,6 @@ impl Mutation {
         ctx: &Context<'cx>,
         name: String,
         max_memory: Option<f64>,
-        up_cmd: Option<String>,
         port: Option<u16>,
         password: String
     ) -> Result<bool,anyhow::Error> {
@@ -137,7 +134,6 @@ impl Mutation {
             name: name.clone(),
             max_memory,
             port,
-            up_cmd
         }).await??;
 
         Ok(true)

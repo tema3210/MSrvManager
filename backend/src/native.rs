@@ -301,18 +301,6 @@ impl Handler<messages::NewServer> for Servers {
 
         let instance_place: Arc<Path> = path.into();
 
-        //make a command file
-        {
-            let mut cmd_file = File::options()
-                .write(true)
-                .open(&*instance_place.join(instance::COMMAND_FILE_NAME))?;
-
-            cmd_file.write(msg.up_cmd.as_bytes())?;
-
-            drop(cmd_file);
-
-        }
-
         let instance = Instance::create(
             Arc::clone(&instance_place),
             desc,
@@ -443,14 +431,6 @@ impl Handler<messages::AlterServer> for Servers {
                     return Err(anyhow!("cannot alter server in bad state"));
                 };
 
-                if let Some(up_cmd) = msg.up_cmd {
-                    let mut cmd_file = File::options()
-                        .write(true)
-                        .truncate(true)
-                        .open(&*instance.place.join(instance::COMMAND_FILE_NAME))?;
-                    cmd_file.write_all(up_cmd.as_bytes())?;
-                }
-
                 if let Some(port) = msg.port {
                     if port != instance.desc.port {
                         self.port_range.try_take(port)?;
@@ -464,7 +444,6 @@ impl Handler<messages::AlterServer> for Servers {
                 }
 
                 instance.flush();
-                instance.reload_run_command()?;
                 Ok(())
             }
             None => Err(anyhow!("cannot change port to blacklisted")),
