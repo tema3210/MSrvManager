@@ -22,20 +22,6 @@ struct Page<C: Display,T: Display> {
     content: serde_json::Value
 }
 
-#[derive(askama::Template)]
-#[template(path = "error.html")]
-struct ErrorPage<T: Display, M: Display> {
-    title: T,
-    message: M,
-}
-
-#[get("/graphiql")]
-async fn graphiql() -> HttpResponse {
-    HttpResponse::Ok()
-        .content_type("text/html; charset=utf-8")
-        .body(playground_source(GraphQLPlaygroundConfig::new("/graphql")))
-}
-
 #[route("/graphql", method = "GET", method = "HEAD", method = "POST")]
 async fn graphql_e(
     schema: web::Data<graphql::SrvsSchema>, 
@@ -102,9 +88,16 @@ async fn main() -> std::io::Result<()> {
                 .default_handler(|r| {
                     let (req,res) = r.into_parts();
                     
-                    let error = ErrorPage {
+                    let error = Page {
                         title: res.status().as_str().to_owned(),
-                        message: "cannot satisfy request"
+                        chunk: "error.js",
+                        content: serde_json::json!({
+                            "msg": "error",
+                            "color": "red",
+                            "fontSize": "2em",
+                            "fontStyle": "italic",
+                            "title": res.status().canonical_reason().unwrap_or("Unknown error")
+                        })
                     };
 
                     let res = error.respond_to(&req);
@@ -126,8 +119,6 @@ async fn main() -> std::io::Result<()> {
         .service(index)
         .service(create)
         .service(alter)
-        // .service(graphiql)
-        
     };
 
     simple_logger::SimpleLogger::new().env().init().unwrap();

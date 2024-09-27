@@ -1,4 +1,5 @@
 import styled from "styled-components";
+import { makeOnLoad, SSRProps } from "./lib";
 
 interface ErrorMessageProps {
     color?: string;
@@ -26,7 +27,9 @@ const ErrorMessageText = styled.div<ErrorMessageProps>`
     font-style: ${({ fontStyle }) => fontStyle || 'italic'};
 `;
 
-const C = ({ msg, color, fontSize, fontStyle, title }: ErrorMessageProps & { msg: string }) => {
+const ErrorDisplay = ({pageData}: SSRProps) => {
+    const { msg, color, fontSize, fontStyle, title } = pageData
+
     return (
         <ErrorMessageContainer color={color}>
             {title && <ErrorMessageTitle color={color}>{title}</ErrorMessageTitle>}
@@ -35,4 +38,4 @@ const C = ({ msg, color, fontSize, fontStyle, title }: ErrorMessageProps & { msg
     );
 };
 
-export default C;
+window.onload = makeOnLoad(ErrorDisplay);

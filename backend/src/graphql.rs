@@ -152,7 +152,6 @@ type Servers = std::collections::HashMap<String,serde_json::Value>;
 #[Subscription]
 impl Subscription {
     async fn servers<'cx>(&self,ctx: &Context<'cx>) -> impl futures::Stream<Item=Servers> + 'cx {
-        log::info!("Initializing servers subscription");
         let service = ctx.data_unchecked::<native::Service>();
 
         tokio_stream::wrappers::IntervalStream::new({

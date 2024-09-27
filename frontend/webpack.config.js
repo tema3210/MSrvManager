@@ -22,7 +22,11 @@ module.exports = {
     alter: {
       dependOn: 'shared',
       import: './src/Alter.tsx',
-    }
+    },
+    error: {
+      dependOn: 'shared',
+      import: './src/Error.tsx',
+    },
 
   },
   output: {

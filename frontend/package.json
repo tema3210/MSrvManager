@@ -25,7 +25,6 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "prebuild": "node make_entry.mjs",
     "build": "webpack --config webpack.config.js"
   },
   "eslintConfig": {
