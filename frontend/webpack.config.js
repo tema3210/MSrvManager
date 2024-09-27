@@ -7,10 +7,6 @@ module.exports = {
     'shared': {
       import: ['react','react-dom','@apollo/client','styled-components','react-hook-form']
     },
-    components: {
-      dependOn: 'shared',
-      import: './web_components.tsx'
-    },
     index: {
       dependOn: 'shared',
       import: './src/Index.tsx',

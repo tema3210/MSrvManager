@@ -4,7 +4,7 @@ use std::{fmt::Display, path::PathBuf, sync::Arc, time::Duration};
 use actix::Actor;
 
 use actix_web::{get, guard, middleware::{ErrorHandlerResponse, ErrorHandlers}, route, web::{self, Data}, App, HttpRequest, HttpResponse, HttpServer, Responder};
-use async_graphql::http::{playground_source, GraphQLPlaygroundConfig};
+use askama::Template;
 use async_graphql_actix_web::{GraphQLRequest, GraphQLResponse, GraphQLSubscription};
 use actix_cors::Cors;
 
@@ -92,7 +92,7 @@ async fn main() -> std::io::Result<()> {
                         title: res.status().as_str().to_owned(),
                         chunk: "error.js",
                         content: serde_json::json!({
-                            "msg": "error",
+                            "msg": "Error has occured",
                             "color": "red",
                             "fontSize": "2em",
                             "fontStyle": "italic",
@@ -100,12 +100,15 @@ async fn main() -> std::io::Result<()> {
                         })
                     };
 
-                    let res = error.respond_to(&req);
-
+                    let res = match error.render() {
+                        Ok(body) => HttpResponse::build(res.status()).body(body),
+                        Err(_) => HttpResponse::InternalServerError().finish(),
+                    };
+    
                     let res = actix_web::dev::ServiceResponse::new(req, res)
                         .map_into_boxed_body()
                         .map_into_right_body();
-
+    
                     Ok(ErrorHandlerResponse::Response(res))
                 })
         )
