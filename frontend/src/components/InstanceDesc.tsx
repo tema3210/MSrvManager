@@ -56,7 +56,7 @@ const Desc = ({instance, selected, setSelected}: Props) => {
             <Title onClick={setSelected}><RightTriangle />{name}</Title>
             <Info>
                 <InfoItem>State: {state}</InfoItem>
-                <InfoItem>Memory usage: {memory ?? 'N/A'}</InfoItem>
+                <InfoItem>Memory usage: {memory ? `${memory} GB` : 'N/A'} </InfoItem>
                 <InfoItem>Max memory: {max_memory} GB</InfoItem>
                 <InfoItem>Port: {port}</InfoItem>
                 <InfoItem>Mods URL: <a href={instance.mods}>{instance.mods}</a></InfoItem>
