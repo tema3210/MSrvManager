@@ -162,7 +162,14 @@ async fn main() -> std::io::Result<()> {
         _ => panic!("bad PORT_RANGE format")
     };
 
-    let native = native::Servers::init(srvrs_dir,rcons,ports).expect("cannot init native service").start();
+    let timeout = std::env::var("TIMEOUT")
+        .expect("no timeout specified")
+        .parse::<u64>()
+        .expect("bad timeout format");
+
+    let timeout = Duration::from_secs(timeout);
+
+    let native = native::Servers::init(srvrs_dir,rcons,ports,timeout).expect("cannot init native service").start();
 
     let native_clone = native.clone();
     

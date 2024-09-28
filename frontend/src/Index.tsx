@@ -60,7 +60,7 @@ const Index = ({}: SSRProps) => {
     
     return <Wrapper>
         <InstanceWrapper width="75%">
-            <TextBig>Version: {(AVloading)? "-" : AVdata.appVersion }; We have these servers:</TextBig>
+            <TextBig>MSRVMANAGER: {(AVloading)? "-" : AVdata.appVersion }; We have these servers:</TextBig>
             <ListWrapper>
                 {
                     Object.entries((data?.servers ?? {}))

@@ -59,6 +59,7 @@ pub struct Servers {
     rcon_range: Indices,
     port_range: Indices,
     servers: HashMap<std::sync::Arc<Path>, instance::Instance>,
+    timeout: Duration
 }
 
 impl Servers {
@@ -72,6 +73,7 @@ impl Servers {
         path: P,
         rcon_range: Range<u16>,
         port_range: Range<u16>,
+        timeout: Duration,
     ) -> Option<Self> {
         let servers_dir = path.into();
 
@@ -127,6 +129,7 @@ impl Servers {
             rcon_range,
             port_range,
             servers,
+            timeout
         })
     }
 
@@ -159,7 +162,7 @@ impl Actor for Servers {
 
     fn stopping(&mut self, _: &mut Self::Context) -> Running {
         for (_, i) in &mut self.servers {
-            i.stop();
+            i.stop(self.timeout);
         }
         Running::Stop
     }
@@ -420,7 +423,7 @@ impl Handler<messages::SwitchServer> for Servers {
                         instance.start();
                     }
                     (model::ServerState::Running, false) => {
-                        instance.stop_async(ctx.address());
+                        instance.stop_async(self.timeout,ctx.address());
                     }
                     _ => {}
                 }

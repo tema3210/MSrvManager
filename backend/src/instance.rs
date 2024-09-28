@@ -189,7 +189,7 @@ impl Instance {
     }
 
     
-    fn stop_inner(mut ch: Child, name: impl AsRef<Path>) {
+    fn stop_inner(mut ch: Child, name: impl AsRef<Path>,timeout: std::time::Duration) {
         log::info!("stopping server {:?} factually", &name.as_ref());
         const STOP_CMD: &[u8] = b"stop\n";
         if let Some(pipe) = &mut ch.stdin {
@@ -210,7 +210,7 @@ impl Instance {
                 }
             };
 
-            match ch.wait_timeout(std::time::Duration::from_secs(10)) {
+            match ch.wait_timeout(timeout) {
                 Ok(Some(status)) => {
                     log::info!("server {:?} stopped with status {:?}", name.as_ref(), status);
                     Instance::dispose(ch);
@@ -227,7 +227,7 @@ impl Instance {
                 }
             }
         } else {
-            log::error!("stdin pipe is not available for {:?}", name.as_ref());
+            log::error!("stdin pipe is not available for {:?} killing", name.as_ref());
             let _ = ch.kill();
             Instance::dispose(ch);
         }
@@ -240,7 +240,7 @@ impl Instance {
         self.state = InstanceState::Normal;
     }
 
-    pub fn stop_async(&mut self, addr: native::Service) {
+    pub fn stop_async(&mut self,timeout: Duration, addr: native::Service) {
         log::info!("stopping server async {:?}", &self.place);
 
         if !matches!(self.state,InstanceState::Normal) {
@@ -251,7 +251,7 @@ impl Instance {
             self.state = InstanceState::Stopping;
             let name = self.place.clone();
             thread::spawn(move || {
-                Self::stop_inner(ch, &name);
+                Self::stop_inner(ch, &name,timeout);
                 addr.do_send(messages::InstanceStopped(name));
             });
             
@@ -261,7 +261,7 @@ impl Instance {
 
 
     /// blocks current thread
-    pub fn stop(&mut self) {
+    pub fn stop(&mut self,timeout: Duration) {
         log::info!("stopping server {:?}", &self.place);
 
         if !matches!(self.state,InstanceState::Normal) {
@@ -269,7 +269,7 @@ impl Instance {
         }     
 
         if let Some(ch) = self.process.take() {
-            Self::stop_inner(ch, self.place.clone())
+            Self::stop_inner(ch, self.place.clone(),timeout)
         }
 
         self.finish_stop()

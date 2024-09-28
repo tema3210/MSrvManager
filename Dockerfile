@@ -15,7 +15,8 @@ ENV PORT=80 \
     RUST_LOG=info \
     RCON_RANGE=26000..27000 \
     PORT_RANGE=25000..63000 \
-    DATA_FOLDER=/data
+    DATA_FOLDER=/data \
+    TIMEOUT=120
 EXPOSE ${PORT}
 
 # RUN apk update && apk add curl
