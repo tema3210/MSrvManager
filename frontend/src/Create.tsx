@@ -5,7 +5,7 @@ import { makeOnLoad, SSRProps } from "./lib";
 import { useForm } from "react-hook-form";
 import { DisplayRange, ErrorP, HomeLink, Label, NumberInput, SInput, TextBig } from "./components/UIComps";
 import { PortsInfo } from "./model";
-import { ChangeEvent, useMemo } from "react";
+import { ChangeEvent, useMemo, useState } from "react";
 import { fullFormats } from "ajv-formats/dist/formats";
 import Btn from "./components/Button";
 import { NumberInputData } from "./schema_utils";
@@ -35,6 +35,8 @@ type FormData = Omit<NewServerReq, SpecialHandling> & {
 
 
 const CreatePage = ({}: SSRProps) => {
+
+    const [uploading, setUploading] = useState(false);
 
     const { data: ports, loading: pLoading } = useQuery<PortsInfo>(gql`
         {
@@ -132,12 +134,17 @@ const CreatePage = ({}: SSRProps) => {
           return;
         }
 
+        // set uploading flag
+        setUploading(true)
+
         const result = await createServer({
           variables: {
             data,
             password
           }
         });
+
+        setUploading(false);
 
         if (result.data?.newServer) {
           // if all is fine then go back to index
@@ -169,14 +176,14 @@ const CreatePage = ({}: SSRProps) => {
     
     return <>
         <form onSubmit={handleSubmit(onSubmit,(e) => console.log("Es:",e))}> 
-            <p><HomeLink href="/">Home</HomeLink><TextBig>Create server page: </TextBig><Btn type="submit" disabled={pLoading} >Create server</Btn></p>
+            <p><HomeLink href="/">Home</HomeLink><TextBig>Create server page: </TextBig><Btn type="submit" disabled={pLoading || uploading} >Create server</Btn></p>
 
             <Label>Name</Label><br />
             <SInput type="text" {...register("name")} placeholder="server name" /><br />
             {errors.name && <ErrorP>{errors.name.message}</ErrorP>}
 
             <Label>Path to jar in archive to be executed as a server</Label><br />
-            <SInput type="text" {...register("serverJar")} placeholder="path" /><br />
+            <SInput type="text" {...register("serverJar")} placeholder="relative path required" /><br />
             {errors.serverJar && <ErrorP>{errors.serverJar.message}</ErrorP>}
 
             <Label>Paramaters for JVM, -Xmx_ excluded</Label><br />
@@ -200,9 +207,12 @@ const CreatePage = ({}: SSRProps) => {
             <Label>Rcon, {ports?.portsTaken.rconLimits ? <DisplayRange range={ports.portsTaken.rconLimits}/> : null}</Label><br />
             <NumberInput name="rcon" type="int" control={control} placeholder="server rcon" /><br />
 
-            <Label>Archive with server instance (max 500 MB)</Label><br /> 
+            <Label>Archive with server instance, no way to limit size right now</Label><br /> 
+            {(uploading)? <TextBig>Uploading...</TextBig> : null}
             <SInput type="file" onChange={onChange} /><br /> 
             {errors.instanceUpload && <ErrorP>{errors.instanceUpload.message}</ErrorP>}
+
+
             {error && <ErrorP>{error.message}</ErrorP>}
         </form>    
     </>
