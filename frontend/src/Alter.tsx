@@ -13,6 +13,7 @@ import { useMemo } from "react";
 type FormData = {
     maxMemory: {value: number, displayValue: string};
     port: {value: number, displayValue: string};
+    javaArgs: string;
 };
 
 const Alter = ({pageData}: SSRProps) => {
@@ -97,7 +98,8 @@ const Alter = ({pageData}: SSRProps) => {
 
         let data = {
             maxMemory: fd.maxMemory.value,
-            port: fd.port.value
+            port: fd.port.value,
+            javaArgs: fd.javaArgs === "" ? null : fd.javaArgs
         };
         
         let res = await mutate(data, password);
@@ -114,6 +116,10 @@ const Alter = ({pageData}: SSRProps) => {
         <form onSubmit={handleSubmit(onSubmit)}>
             <p><HomeLink href="/">Home</HomeLink><TextBig>Alter {instanceData?.name} page: </TextBig><Btn type="submit" >Change server</Btn></p>
             {errorM && <ErrorP>{errorM.message}</ErrorP>}
+
+            <Label>Paramaters for JVM, -Xmx_ excluded</Label><br />
+            <SInput type="text" {...register("javaArgs")} placeholder="JVM params" /><br />
+            {errors.javaArgs && <ErrorP>{errors.javaArgs.message}</ErrorP>}
 
             <Label>Max Memory, (1;32)</Label><br />
             <NumberInput type="float" name="maxMemory" control={control} placeholder={instanceData?.max_memory?.toString() ?? "-"} /><br />

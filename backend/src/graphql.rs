@@ -128,6 +128,7 @@ impl Mutation {
         ctx: &Context<'cx>,
         name: String,
         max_memory: Option<f64>,
+        java_args: Option<String>,
         port: Option<u16>,
         password: String
     ) -> Result<bool,anyhow::Error> {
@@ -144,6 +145,7 @@ impl Mutation {
         service.send(messages::AlterServer {
             name: name.clone(),
             max_memory,
+            java_args: java_args.map(|s| s.split_whitespace().map(|s| s.into()).collect::<Vec<_>>()),
             port,
         }).await??;
 

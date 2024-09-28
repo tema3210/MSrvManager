@@ -89,7 +89,8 @@ pub struct SwitchServer {
 pub struct AlterServer {
     pub name: String,
     pub max_memory: Option<f64>,
-    pub port: Option<u16>
+    pub port: Option<u16>,
+    pub java_args: Option<Vec<OsString>>,
 }
 
 #[derive(Message,Debug)]

@@ -456,6 +456,10 @@ impl Handler<messages::AlterServer> for Servers {
                     instance.desc.max_memory = max_memory;
                 }
 
+                if let Some(java_args) = msg.java_args {
+                    instance.desc.java_args = java_args;
+                }
+
                 instance.flush();
                 Ok(())
             }
