@@ -171,6 +171,7 @@ impl Instance {
                     .arg("-jar")
                     .arg(self.desc.server_jar.as_os_str())
                     .arg("--nogui")
+                    .stdin(std::process::Stdio::piped())
                 ;
 
                 match cmd.spawn() {
@@ -188,7 +189,6 @@ impl Instance {
         };
     }
 
-    
     fn stop_inner(mut ch: Child, name: impl AsRef<Path>,timeout: std::time::Duration) {
         log::info!("stopping server {:?} factually", &name.as_ref());
         const STOP_CMD: &[u8] = b"stop\n";
