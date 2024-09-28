@@ -56,12 +56,16 @@ impl Instance {
     }
 
     pub fn patch_server_props(&self) -> anyhow::Result<()> {
+        let password = std::env::var("PASSWORD")
+            .expect("no password specified");
+
         let output = Command::new("sh")
             .arg(PATCH_SH_PATH)
             .env("MPORT", self.desc.port.to_string())
             .env("MRCON", self.desc.rcon.to_string())
             .env("MAXMEMORY", format!("{}G", self.desc.max_memory))
             .env("PROPERTIES_FILE", self.place.join(SERVER_PROPERTIES_FILE))
+            .env("PASSWORD", password)
             .output()?;
 
         if !output.status.success() {
