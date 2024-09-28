@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{ffi::OsString, path::Path};
 
 use actix::Message;
 use async_graphql::{SimpleObject, UploadValue};
@@ -45,6 +45,7 @@ pub struct NewServer {
     pub name: String,
 
     pub server_jar: PathBuf,
+    pub java_args: Vec<OsString>,
 
     pub setup_cmd: Option<String>,
     pub url: url::Url,

@@ -44,6 +44,7 @@ pub struct NewServer {
 
     /// path to jar of server inside of upload
     server_jar: String,
+    java_args: String,
 
     setup_cmd: Option<String>,
     url: url::Url,
@@ -103,6 +104,8 @@ impl Mutation {
         }
 
         let val = data.instance_upload.value(ctx)?;
+
+        let args = data.java_args.split_whitespace().map(|s| s.into()).collect::<Vec<_>>();
         
         service.send(messages::NewServer {
             name: data.name,
@@ -112,7 +115,8 @@ impl Mutation {
             max_memory: data.max_memory,
             port: data.port,
             rcon: data.rcon,
-            instance_upload: val
+            instance_upload: val,
+            java_args: args
         }).await??;
 
         Ok(true)

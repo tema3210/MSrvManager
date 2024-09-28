@@ -305,6 +305,7 @@ impl Handler<messages::NewServer> for Servers {
             memory: None,
             port: msg.port,
             rcon: msg.rcon,
+            java_args: msg.java_args,
         };
 
         //make an instance

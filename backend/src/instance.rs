@@ -167,8 +167,10 @@ impl Instance {
                 let mut cmd = Command::new("java");
                 cmd.current_dir(self.place.join(self.desc.server_jar.parent().unwrap()))
                     .arg(format!("-Xmx{}M", (self.desc.max_memory * 1024.0) as u64))
+                    .args(self.desc.java_args.iter())
                     .arg("-jar")
                     .arg(self.desc.server_jar.as_os_str())
+                    .arg("--nogui")
                 ;
 
                 match cmd.spawn() {

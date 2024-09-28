@@ -1,4 +1,4 @@
-use std::{fs::File, path::PathBuf};
+use std::{ffi::OsString, fs::File, path::PathBuf};
 
 use serde::{Deserialize,Serialize};
 
@@ -23,6 +23,7 @@ pub struct InstanceDescriptor {
     pub port: u16,
 
     pub server_jar: PathBuf,
+    pub java_args: Vec<OsString>,
     pub rcon: u16,
 }
 

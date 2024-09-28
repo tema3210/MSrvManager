@@ -15,6 +15,7 @@ type NewServerReq = {
 
     setupCmd: string | null,
     serverJar: string,
+    javaArgs: string | null,
 
     url: string,
     maxMemory: number,
@@ -55,6 +56,7 @@ const CreatePage = ({}: SSRProps) => {
               name: { "type": "string", minLength: 4 },
               serverJar: { "type": "string", minLength: 7 }, // aka ./_.jar
               upCmd: { "type": "string" },
+              javaArgs: { "type": "string" },
               setupCmd: {
                 oneOf: [
                   { type: "string" },
@@ -176,6 +178,10 @@ const CreatePage = ({}: SSRProps) => {
             <Label>Path to jar in archive to be executed as a server</Label><br />
             <SInput type="text" {...register("serverJar")} placeholder="path" /><br />
             {errors.serverJar && <ErrorP>{errors.serverJar.message}</ErrorP>}
+
+            <Label>Paramaters for JVM, -Xmx_ excluded</Label><br />
+            <SInput type="text" {...register("javaArgs")} placeholder="JVM params" /><br />
+            {errors.javaArgs && <ErrorP>{errors.javaArgs.message}</ErrorP>}
 
             <Label>Setup command to be run once</Label><br />
             <SInput type="text" {...register("setupCmd")} placeholder="command run once at the root of archive" /><br />
