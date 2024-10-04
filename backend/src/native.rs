@@ -1,182 +1,171 @@
 use std::{
     collections::HashMap,
-    fs::{File, Permissions},
-    io::copy,
     ops::Range,
     path::{Path, PathBuf},
 };
-use zip::ZipArchive;
 
 use anyhow::anyhow;
+use futures::{stream::FuturesUnordered, StreamExt};
 use instance::Instance;
 
 use crate::*;
+use crate::messages::{native_messages,instance_messages};
+use utils::Indices;
 
 use actix::prelude::*;
 
-#[derive(Debug)]
-pub struct Indices(Range<u16>, bit_set::BitSet);
 
-impl Indices {
-    fn try_take(&mut self, idx: u16) -> Result<(), anyhow::Error> {
-        if !self.0.contains(&idx) {
-            return Err(anyhow!("out of bounds"));
-        };
-
-        if self.1.contains(idx.into()) {
-            return Err(anyhow!("already occupied"));
-        };
-
-        self.1.insert(idx.into());
-
-        Ok(())
-    }
-
-    fn free(&mut self, idx: u16) -> anyhow::Result<()> {
-        if !self.0.contains(&idx) {
-            return Err(anyhow!("out of bounds"));
-        };
-
-        if self.1.contains(idx.into()) {
-            self.1.remove(idx.into());
-            return Ok(());
-        };
-
-        Err(anyhow!("already freed"))
-    }
-
-    /// iterate over taken ports
-    pub fn taken(&self) -> Vec<u16> {
-        self.1
-            .iter()
-            .map(|p| p.try_into().expect("have port larger than it should be"))
-            .collect()
-    }
+#[derive(Clone,Debug)]
+pub struct Server {
+    addr: Addr<instance::Instance>,
+    ports: model::Ports,
 }
 
 pub struct Servers {
     servers_dir: PathBuf,
     rcon_range: Indices,
     port_range: Indices,
-    servers: HashMap<std::sync::Arc<Path>, instance::Instance>,
-    timeout: Duration
-}
+    timeout: Duration,
+    password: String,
 
-impl Servers {
-    pub fn name_to_path<P: AsRef<Path>>(&self, name: P) -> PathBuf {
-        let mut res = self.servers_dir.clone();
-        res.push(name.as_ref());
-        res
-    }
-
-    pub fn init<P: Into<PathBuf>>(
-        path: P,
-        rcon_range: Range<u16>,
-        port_range: Range<u16>,
-        timeout: Duration,
-    ) -> Option<Self> {
-        let servers_dir = path.into();
-
-        let Ok(servers) = std::fs::read_dir(&servers_dir) else {
-            return None;
-        };
-
-        let mut rcon_range = Indices(
-            rcon_range.clone(),
-            bit_set::BitSet::with_capacity(rcon_range.len()),
-        );
-        let mut port_range = Indices(port_range, bit_set::BitSet::with_capacity(u16::MAX.into()));
-
-        let servers: HashMap<_, _> = servers
-            .filter_map(|e| match e {
-                Ok(e) => {
-                    let e_path = e.path();
-                    if e_path.is_dir() {
-                        let arc_path: Arc<Path> = e_path.into();
-
-                        match instance::Instance::load(Arc::clone(&arc_path)) {
-                            Ok(instance) => {
-                                let desc = &instance.desc;
-
-                                if let Err(e) = port_range.try_take(desc.port) {
-                                    log::error!("a servers {} port {} is taken", &desc.name, e);
-                                    return None;
-                                }
-
-                                if let Err(e) = rcon_range.try_take(desc.rcon) {
-                                    log::error!("a servers {} rcon port {} is taken", &desc.name, e);
-                                    return None;
-                                }
-
-                                Some((arc_path.clone(), instance))
-                            },
-                            Err(e) => {
-                                log::error!("couldn't load server at {:?} due to {:?}, nuking", &arc_path, e);
-                                let _ = std::fs::remove_dir_all(arc_path.as_ref());
-                                None
-                            }
-                        }
-                    } else {
-                        None
-                    }
-                }
-                Err(_) => None,
-            })
-            .collect();
-
-        Some(Self {
-            servers_dir,
-            rcon_range,
-            port_range,
-            servers,
-            timeout
-        })
-    }
-
-    pub fn hb(&mut self) {
-        for (_, i) in &mut self.servers {
-            i.hb();
-        }
-    }
-
-    pub fn nuke(&mut self, instance: &instance::Instance) -> anyhow::Result<()> {
-        self.port_range.1.remove(instance.desc.port.into());
-        self.rcon_range.1.remove(instance.desc.rcon.into());
-        std::fs::remove_dir_all(instance.place.as_ref())?;
-        Ok(())
-    }
+    servers: HashMap<std::sync::Arc<Path>, Server>,
 }
 
 impl Actor for Servers {
     type Context = actix::Context<Self>;
 
-    fn started(&mut self, _: &mut Self::Context) {
-        for (_, i) in &mut self.servers {
-            match i.desc.state {
-                model::ServerState::Running => i.start(),
-                _ => {}
-
+    fn started(&mut self, ctx: &mut Self::Context) {
+        let Ok(servers) = std::fs::read_dir(&self.servers_dir) else {
+            log::error!("couldn't read servers dir");
+            ctx.stop();
+            return;
+        };
+        servers.filter_map(|de| {
+            let de = de.ok()?;
+            if de.path().is_dir() {
+                Some(de)
+            } else {
+                None
             }
+        }).filter_map(|at| {
+            let arc_path: Arc<Path> = at.path().into();
+            let env = instance::InstanceEnv {
+                timeout: self.timeout,
+                servers: ctx.address(),
+                password: self.password.clone(),
+            };
+            match instance::Instance::load(Arc::clone(&arc_path),env) {
+                Ok((instance,ports)) => {
+
+                    if let Err(e) = self.port_range.try_take(ports.port) {
+                        log::error!("a servers {:?} port {} is taken", at.path(), e);
+                        return None;
+                    }
+
+                    if let Err(e) = self.rcon_range.try_take(ports.rcon) {
+                        log::error!("a servers {:?} rcon port {} is taken", at.path(), e);
+                        return None;
+                    }
+
+                    Some((arc_path.clone(), instance, ports))
+                },
+                Err(e) => {
+                    log::error!("couldn't load server at {:?} due to {:?}, nuking", &arc_path, e);
+                    let _ = std::fs::remove_dir_all(arc_path.as_ref());
+                    None
+                }
+            }
+        }).for_each(|(arc_path, instance,ports)| {
+            self.servers.insert(arc_path, Server {
+                addr: instance.start(),
+                ports
+            });
+        });
+    }
+
+    fn stopping(&mut self, ctx: &mut Self::Context) -> Running {
+        let stop_futures = self.servers.values().map(|srv| {
+            srv.addr.send(instance_messages::SwitchServer {should_run: false})
+        }).collect::<FuturesUnordered<_>>();
+
+        let stop = stop_futures.collect::<Vec<_>>().into_actor(self).then(|res, _, _| {
+            for i in res {
+                if let Err(e) = i {
+                    log::error!("failed to stop server: {:?}", e);
+                }
+            };
+            fut::ready(())
+        });
+        ctx.wait(stop);
+        Running::Stop
+    }
+}
+
+impl Servers {
+    fn name_to_path<P: AsRef<Path>>(&self, name: P) -> PathBuf {
+        self.servers_dir.as_path().join(name)
+    }
+
+    pub fn new<P: AsRef<Path>>(
+        path: P,
+        rcon_range: Range<u16>,
+        port_range: Range<u16>,
+        timeout: Duration,
+        password: String,
+    ) -> Self {
+        let servers_dir = path.as_ref().to_owned();
+
+        let rcon_range = Indices::new(
+            rcon_range.clone()
+        );
+        let port_range = Indices::new(port_range);
+
+        return Self {
+            servers_dir,
+            rcon_range,
+            port_range,
+            servers: HashMap::new(),
+            timeout,
+            password
+        };
+        
+    }
+
+    fn hb(&mut self) {
+        for (_, i) in &mut self.servers {
+            i.addr.do_send(messages::Tick);
         }
     }
 
-    fn stopping(&mut self, _: &mut Self::Context) -> Running {
-        for (_, i) in &mut self.servers {
-            i.stop(self.timeout);
+    fn nuke(&mut self, who: impl AsRef<Path>) -> anyhow::Result<()> {
+        let path = who.as_ref();
+        if let Some(server) = self.servers.remove(path.into()) {
+            self.port_range.free(server.ports.port)?;
+            self.rcon_range.free(server.ports.rcon)?;
         }
-        Running::Stop
+        std::fs::remove_dir_all(path)?;
+        Ok(())
     }
 }
 
 pub type Service = actix::Addr<Servers>;
 
-impl Handler<messages::Ports> for Servers {
-    type Result = MessageResult<messages::Ports>;
+impl Handler<native_messages::AddrOf<instance::Instance>> for Servers {
+    type Result = Option<Addr<instance::Instance>>;
 
-    fn handle(&mut self, _: messages::Ports, _: &mut Self::Context) -> Self::Result {
-        let pr = &self.port_range.0;
-        let rr = &self.rcon_range.0;
-        MessageResult(messages::PortsInfo {
+    fn handle(&mut self, msg: native_messages::AddrOf<instance::Instance>, _: &mut Self::Context) -> Self::Result {
+        let name = self.name_to_path(msg.0);
+        self.servers.get_mut::<Path>(name.as_ref()).map(|s| s.addr.clone())
+    }
+}
+
+impl Handler<native_messages::Ports> for Servers {
+    type Result = MessageResult<native_messages::Ports>;
+
+    fn handle(&mut self, _: native_messages::Ports, _: &mut Self::Context) -> Self::Result {
+        let pr = self.port_range.range();
+        let rr = self.rcon_range.range();
+        MessageResult(model::PortsInfo {
             ports: self.port_range.taken(),
             rcons: self.rcon_range.taken(),
             port_limits: [pr.start, pr.end],
@@ -185,93 +174,48 @@ impl Handler<messages::Ports> for Servers {
     }
 }
 
-impl<O, F> Handler<messages::Instances<O, F>> for Servers
+impl<O, F> Handler<native_messages::Instances<O, F>> for Servers
 where
-    F: Send + Fn(&instance::Instance) -> Option<O>,
+    F: Send + Sync + Fn(&instance::Instance) -> Option<O> + 'static,
     O: Send + 'static,
 {
-    type Result = Vec<O>;
+    type Result = ResponseFuture<Vec<O>>;
 
-    fn handle(&mut self, m: messages::Instances<O, F>, _: &mut Context<Self>) -> Self::Result {
-        self
+    fn handle(&mut self, m: native_messages::Instances<O, F>, _: &mut Context<Self>) -> Self::Result {
+
+        let f = Arc::new(m.f);
+
+        let summary = self
             .servers
             .values()
-            .filter_map(m.f)
-            .collect()
-    }
-}
+            .map(|Server {addr, ..}| addr.clone())
+            .map(|addr| {
+                let f = Arc::clone(&f);
+                addr.send(instance_messages::Instance {
+                    f: move |i| (f)(i),
+                })
+            })
+            .collect::<FuturesUnordered<_>>();
 
-impl<O, F> Handler<messages::Instance<O, F>> for Servers
-where
-    F: Send + Fn(&instance::Instance) -> Option<O>,
-    O: Send + 'static,
-{
-    type Result = Option<O>;
-
-    fn handle(&mut self, msg: messages::Instance<O, F>, _: &mut Self::Context) -> Self::Result {
-        let path = self.name_to_path(msg.name.as_ref());
-
-        self.servers.get(&*path).map(|instance| (msg.f)(instance)).flatten()
-    }
-}
-
-impl Handler<messages::LoadingEnded> for Servers {
-    type Result = ();
-
-    fn handle(&mut self, msg: messages::LoadingEnded, _: &mut Self::Context) -> Self::Result {
-        match self.servers.entry(msg.0) {
-            std::collections::hash_map::Entry::Occupied(mut e) => {
-                if !matches!(e.get().state, instance::InstanceState::Downloading) {
-                    log::error!(
-                        "loading ended recieved for a non loading instance at {:?}",
-                        e.key()
-                    );
-                    return;
-                }
-                if let Some(error) = msg.1 {
-                    let instance = e.remove();
-                    let name = &instance.desc.name;
-                    log::error!("couldn't load {name} due to {error}");
-                    if let Err(e) = self.nuke(&instance) {
-                        log::error!("cannot nuke {name}: {e}")
+        Box::pin(async move {
+            summary.fold(Vec::new(), |mut acc, o| async {
+                match o {
+                    Ok(Some(o)) => acc.push(o),
+                    Ok(None) => {}
+                    Err(e) => {
+                        log::error!("error while getting instance: {:?}", e);
                     }
-                    return;
                 };
-
-                let props_path = e.get().place.join("server.properties");
-                if !props_path.exists() {
-                    let instance = e.remove();
-                    let name = &instance.desc.name;
-                    log::error!("server properties file not found for {name}");
-                    if let Err(e) = self.nuke(&instance) {
-                        log::error!("cannot nuke {name}: {e}")
-                    }
-                    return;
-                }
-
-                if let Err(error) = e.get_mut().patch_server_props() {
-                    let instance = e.remove();
-                    let name = &instance.desc.name;
-                    log::error!("couldn't patch {name} props due to {error}");
-                    if let Err(e) = self.nuke(&instance) {
-                        log::error!("cannot nuke {name}: {e}")
-                    }
-                    return;
-                }
-                e.get_mut().state = instance::InstanceState::Normal;
-            }
-            std::collections::hash_map::Entry::Vacant(ve) => {
-                let name = &**ve.key();
-                log::error!("loading event on unexisting server called {name:?}");
-            }
-        }
+                acc
+            }).await
+        })
     }
 }
 
-impl Handler<messages::NewServer> for Servers {
+impl Handler<native_messages::NewServer> for Servers {
     type Result = anyhow::Result<()>;
 
-    fn handle(&mut self, msg: messages::NewServer, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: native_messages::NewServer, ctx: &mut Self::Context) -> Self::Result {
         let path = self.name_to_path(&msg.name);
 
         if path.exists() && self.servers.contains_key((&*path).into()) {
@@ -303,7 +247,6 @@ impl Handler<messages::NewServer> for Servers {
             server_jar: msg.server_jar,
             name: msg.name,
             mods: msg.url,
-            state: model::ServerState::Stopped,
             max_memory: msg.max_memory,
             memory: None,
             port: msg.port,
@@ -311,92 +254,25 @@ impl Handler<messages::NewServer> for Servers {
             java_args: msg.java_args,
         };
 
-        //make an instance
-
-        Instance::prepare(&path)?;
-
         let instance_place: Arc<Path> = path.into();
 
         let instance = Instance::create(
             Arc::clone(&instance_place),
             desc,
-            instance::InstanceState::Downloading,
-        )?;
+            msg.setup_cmd,
+            msg.instance_upload,
+            instance::InstanceEnv { 
+                servers: ctx.address(),
+                timeout: self.timeout,
+                password: self.password.clone(),
+            },
+        ).start();
 
-        self.servers.insert(Arc::clone(&instance_place), instance);
-
-        std::thread::spawn({
-            let addr = ctx.address();
-            let instance_place = instance_place;
-
-            let output_dir = Arc::clone(&instance_place);
-
-            let mut instance_data = msg.instance_upload.content;
-
-            let setup_cmd = msg.setup_cmd.map(|c| {
-                let mut cmd = std::process::Command::new(c);
-                cmd.current_dir(&*instance_place);
-                cmd
-            });
-
-            let name = Arc::clone(&instance_place);
-            let job = move || -> anyhow::Result<()> {
-                let mut archive = ZipArchive::new(&mut instance_data)?;
-
-                log::info!("starting to unpack to {:?}", &*name);
-
-                for i in 0..archive.len() {
-                    let mut archive_file = archive.by_index(i)?;
-
-                    let outpath = match archive_file.enclosed_name() {
-                        Some(path) => (&*output_dir).join(path),
-                        None => continue,
-                    };
-
-                    // Create directories if necessary
-                    if archive_file.is_dir() {
-                        log::trace!("creating dir {:?}", &*outpath);
-                        let _ = std::fs::create_dir_all(&outpath)?;
-                    } else {
-                        if let Some(p) = outpath.parent() {
-                            log::trace!("create dir all at {:?} for {:?}", p, &outpath);
-                            let _ = std::fs::create_dir_all(p)?;
-                        }
-                        log::trace!("making {:?}", &*outpath);
-                        let mut outfile = File::create(&outpath)?;
-                        log::trace!("copying {:?}", &*outpath);
-
-                        copy(&mut archive_file, &mut outfile)?;
-
-                        // Set file permissions
-                        if let Some(mode) = archive_file.unix_mode() {
-                            let permissions = <Permissions as std::os::unix::fs::PermissionsExt>::from_mode(mode);
-                            std::fs::set_permissions(&outpath, permissions.clone())?;
-                            log::trace!("set permissions {:?} for {:?}", permissions, &*outpath);
-                        }
-
-                        log::info!("copied {:?}", &*outpath);
-                    }
-                }
-
-                //run setup command if it exists
-                if let Some(mut c) = setup_cmd {
-                    if c.spawn()?.wait()?.success() {
-                        Ok(())
-                    } else {
-                        Err(anyhow!("the setup command didn't succeed"))
-                    }
-                } else {
-                    Ok(())
-                }
-            };
-            move || match job() {
-                Ok(()) => {
-                    addr.do_send(messages::LoadingEnded(instance_place, None));
-                }
-                Err(e) => {
-                    addr.do_send(messages::LoadingEnded(instance_place, Some(e)));
-                }
+        self.servers.insert(instance_place, Server {
+            addr: instance,
+            ports: model::Ports {
+                port: msg.port,
+                rcon: msg.rcon,
             }
         });
 
@@ -404,92 +280,31 @@ impl Handler<messages::NewServer> for Servers {
     }
 }
 
-impl Handler<messages::SwitchServer> for Servers {
+impl Handler<native_messages::AlterServer> for Servers {
     type Result = anyhow::Result<()>;
 
-    fn handle(&mut self, msg: messages::SwitchServer, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: native_messages::AlterServer, _: &mut Self::Context) -> Self::Result {
         let path = self.name_to_path(msg.name);
 
-        match self.servers.get_mut(&*path) {
-            Some(instance) => {
-                if !matches!(instance.state, instance::InstanceState::Normal) {
-                    log::error!("cannot switch server in bad state");
-                    return Err(anyhow!("cannot switch server in bad state"));
-                }
-                let t = (instance.desc.state,msg.should_run);
-                log::trace!("switching {:?} on {:?}", &path, t);
-                match t {
-                    (model::ServerState::Stopped | model::ServerState::Crashed, true) => {
-                        instance.start();
-                    }
-                    (model::ServerState::Running, false) => {
-                        instance.stop_async(self.timeout,ctx.address());
-                    }
-                    _ => {}
-                }
-                Ok(())
+        let Some(srv) = self.servers.get_mut::<Path>(path.as_ref()) else {
+            return Err(anyhow!("server not found"));
+        };
+
+        if let Some(port) = msg.msg.port {
+            if srv.ports.port != port {
+                self.port_range.try_take(port)?;
+                self.port_range.free(srv.ports.port)?;
+                srv.ports.port = port;
             }
-            None => Err(anyhow!("cannot switch unexisting server")),
         }
+
+        //we don't really have to check for success here
+        let _ = srv.addr.send(msg.msg);
+        
+        Ok(())
     }
 }
 
-impl Handler<messages::AlterServer> for Servers {
-    type Result = anyhow::Result<()>;
-
-    fn handle(&mut self, msg: messages::AlterServer, _: &mut Self::Context) -> Self::Result {
-        let path = self.name_to_path(msg.name);
-
-        match self.servers.get_mut((&*path).into()) {
-            Some(instance) => {
-                if !matches!(instance.state, instance::InstanceState::Normal) {
-                    log::error!("cannot alter server in bad state");
-                    return Err(anyhow!("cannot alter server in bad state"));
-                };
-
-                if let Some(port) = msg.port {
-                    if port != instance.desc.port {
-                        self.port_range.try_take(port)?;
-                        self.port_range.free(instance.desc.port)?;
-                        instance.desc.port = port;
-                    }
-                }
-
-                if let Some(max_memory) = msg.max_memory {
-                    instance.desc.max_memory = max_memory;
-                }
-
-                if let Some(java_args) = msg.java_args {
-                    instance.desc.java_args = java_args;
-                }
-
-                instance.flush();
-                Ok(())
-            }
-            None => Err(anyhow!("cannot change port to blacklisted")),
-        }
-    }
-}
-
-impl Handler<messages::InstanceStopped> for Servers {
-    type Result = ();
-
-    fn handle(&mut self, msg: messages::InstanceStopped, _: &mut Self::Context) -> Self::Result {
-        match self.servers.entry(msg.0) {
-            std::collections::hash_map::Entry::Occupied(mut e) => {
-                if !matches!(e.get().state, instance::InstanceState::Stopping) {
-                    log::error!("instance stopped message for a not stopping target");
-                    return;
-                };
-                log::info!("instance stopped for {:?}", e.key());
-                e.get_mut().finish_stop();
-            }
-            std::collections::hash_map::Entry::Vacant(_) => {
-                log::error!("instance stopped for unexisting");
-            }
-        }
-    }
-}
 
 impl Handler<messages::Tick> for Servers {
     type Result = MessageResult<messages::Tick>;
@@ -501,26 +316,32 @@ impl Handler<messages::Tick> for Servers {
     }
 }
 
-impl Handler<messages::DeleteServer> for Servers {
+impl Handler<native_messages::DeleteServer> for Servers {
     type Result = anyhow::Result<()>;
 
-    fn handle(&mut self, msg: messages::DeleteServer, _: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: native_messages::DeleteServer, _: &mut Self::Context) -> Self::Result {
         let path = self.name_to_path(msg.name);
 
-        match self.servers.entry(path.into()) {
-            std::collections::hash_map::Entry::Occupied(e) => {
-                if !matches!(e.get().state, instance::InstanceState::Normal) {
-                    return Err(anyhow!("Resource is in a bad state"));
-                }
-                let mut instance = e.remove();
-                instance.kill();
-                self.nuke(&instance)?;
+        let Some((path,srv)) = self.servers.remove_entry::<Path>(path.as_ref()) else {
+            return Err(anyhow!("server not found"));
+        };
 
-                Ok(())
-            }
-            std::collections::hash_map::Entry::Vacant(_) => {
-                Err(anyhow!("trying to delete absent server"))
-            }
-        }
+        self.port_range.free(srv.ports.port)?;
+        self.rcon_range.free(srv.ports.rcon)?;
+
+        let _ = srv.addr.send(instance_messages::Kill);
+
+        self.nuke(path)?;
+
+        Ok(())
+    
+    }
+}
+
+impl Handler<native_messages::Nuke> for Servers {
+    type Result = anyhow::Result<()>;
+
+    fn handle(&mut self, msg: native_messages::Nuke, _: &mut Self::Context) -> Self::Result {
+        self.nuke(msg.who)
     }
 }

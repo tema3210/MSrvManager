@@ -1,103 +1,114 @@
-use std::{fs::File, io::{ErrorKind, Seek, SeekFrom, Write}, path::Path, process::Child, thread};
+use std::io::ErrorKind;
+use std::{io::Write, path::Path, process::Child};
 
+use actix::prelude::*;
+use async_graphql::UploadValue;
 use wait_timeout::ChildExt;
 
 use crate::*;
 
+use crate::messages::{instance_messages,native_messages};
+
 use anyhow::anyhow;
 use std::process::Command;
 
-#[derive(Debug,Clone,Copy)]
-pub enum InstanceState {
-    Normal,
-    Downloading,
-    Stopping
+pub struct InstanceData {
+    pub desc: model::InstanceDescriptor,
+    manifest: std::fs::File,
 }
 
+impl InstanceData {
+
+}
+
+pub enum InstanceState {
+    Running {
+        child: Child,
+        rcon: rcon::Rcon,
+        data: InstanceData
+    },
+    Starting {
+        child: Child,
+        data: InstanceData
+    },
+    Crashed {
+        data: InstanceData
+    },
+    Stopped {
+        data: InstanceData
+    },
+    Downloading {
+        desc: model::InstanceDescriptor,
+        setup_cmd: Option<Command>,
+        payload: UploadValue
+    },
+    /// this state is blank, used for transactional operations
+    Swap
+}
+
+pub struct InstanceEnv {
+    pub servers: Addr<native::Servers>,
+    pub timeout: std::time::Duration,
+    pub password: String
+}
 
 /// The descriptor of a server
 /// at the dir pointed by `place`
-/// there should be `msrvDesc.json` file
-/// and `run.command` file
-#[derive(Debug)]
+/// there should be `msrvDesc.json` file, manifest field
 pub struct Instance {
-    pub desc: model::InstanceDescriptor,
-    pub state: InstanceState,
-    /// should point at directory where Instance is located
-    pub place: Arc<Path>,
+    /// should point at directory where Instance is or should be located located
+    place: Arc<Path>,
+    env: InstanceEnv,
 
-    manifest: std::fs::File,
-
-    process: Option<std::process::Child>
+    state: InstanceState,
 }
 
-pub const MANIFEST_NAME: &str = "msrvDesc.json";
-
-const PATCH_SH_PATH: &str = "/app/patch.sh";
-
-pub const SERVER_PROPERTIES_FILE: &str = "server.properties";
-
 impl Instance {
-    /// should create dir and apropriate manifest files there
-    pub fn prepare<P: AsRef<Path>>(at: P) -> anyhow::Result<()> {
-        log::trace!("preparing dir for server at {:?}",at.as_ref());
-        std::fs::create_dir(&at)?;
-
-        std::fs::File::create_new(at.as_ref().join(instance::MANIFEST_NAME))?;
-
-        Ok(())
+    pub fn place(&self) -> &Path {
+        &*self.place
     }
 
-    fn open_manifest(at: &Path) -> Result<File, std::io::Error> {
-        File::options()
-            .write(true)    
-            .read(true)
-            .open(at.join(MANIFEST_NAME))
-    }
-
-    pub fn patch_server_props(&self) -> anyhow::Result<()> {
-        let password = std::env::var("PASSWORD")
-            .expect("no password specified");
-
-        let output = Command::new("sh")
-            .arg(PATCH_SH_PATH)
-            .env("MPORT", self.desc.port.to_string())
-            .env("MRCON", self.desc.rcon.to_string())
-            .env("MAXMEMORY", format!("{}G", self.desc.max_memory))
-            .env("PROPERTIES_FILE", self.place.join(SERVER_PROPERTIES_FILE))
-            .env("PASSWORD", password)
-            .output()?;
-
-        if !output.status.success() {
-            Err(anyhow!(
-                "patch_server_props script failed with status: {}",
-                output.status
-            ))
-        } else {
-            log::trace!("patch_server_props script executed successfully");
-            Ok(())
+    pub fn state(&self) -> model::InstanceState {
+        match self.state {
+            InstanceState::Running { .. } => model::InstanceState::Running,
+            InstanceState::Starting { .. } => model::InstanceState::Starting,
+            InstanceState::Crashed { .. } => model::InstanceState::Crashed,
+            InstanceState::Stopped { .. } => model::InstanceState::Stopped,
+            InstanceState::Downloading { .. } => model::InstanceState::Downloading,
+            InstanceState::Swap => model::InstanceState::Busy
         }
     }
 
-    pub fn create(place: Arc<Path>, desc: model::InstanceDescriptor,state: InstanceState) -> anyhow::Result<Self> {
-        if !place.is_dir() {
-            return Err(anyhow!("create should be called on dir"));
+    pub fn desc(&self) -> Option<&model::InstanceDescriptor> {
+        match &self.state {
+            InstanceState::Running { data, .. } |
+            InstanceState::Starting { data, .. } |
+            InstanceState::Crashed { data, .. } |
+            InstanceState::Stopped { data, .. } => Some(&data.desc),
+            _ => None
         }
+    }
+}
 
-        let mut manifest = Self::open_manifest(&*place)?;
-
-        desc.to_file(&mut manifest)?;
-
-        Ok(Instance {
+//ctors
+impl Instance {
+    pub fn create(
+        at: Arc<Path>,
+        desc: model::InstanceDescriptor,
+        cmd: Option<String>,
+        payload: UploadValue,
+        env: InstanceEnv,
+    ) -> Self {
+        let state = InstanceState::Downloading {
             desc,
-            state,
-            process: None,
-            place,
-            manifest,
-        })
+            setup_cmd: cmd.map(utils::make_command),
+            payload
+        };
+
+        Self {place: at, state, env}
     }
 
-    pub fn load(place: Arc<Path>) -> anyhow::Result<Self> {
+    pub fn load(place: Arc<Path>, env: InstanceEnv ) -> anyhow::Result<(Self,model::Ports)> {
 
         log::info!("Loading server instance at {:?}",&*place);
 
@@ -105,96 +116,141 @@ impl Instance {
             return Err(anyhow!("load should be called on dir"));
         }
 
-        let mut manifest = Self::open_manifest(&*place)?;
+        let mut manifest = utils::open_manifest(&*place)?;
         let desc: model::InstanceDescriptor = model::InstanceDescriptor::from_file(&mut manifest)?;
 
-        Ok(Self {desc, place, manifest, process: None, state: InstanceState::Normal})
-    }
+        let ports = model::Ports {
+            port: desc.port,
+            rcon: desc.rcon
+        };
 
-    // we don't have anything to do reasonably in case of failure
-    pub fn flush(&mut self) {
-        let _ = self.manifest.seek(SeekFrom::Start(0));
-        let _ = self.manifest.set_len(0);
-        let _ = serde_json::to_writer(&mut self.manifest, &self.desc);
-        let _ = self.manifest.flush();
-    }
-
-    pub fn hb(&mut self) {
-        
-        if !matches!(self.state,InstanceState::Normal) {
-            return
-        }
-
-        match &mut self.process {
-            Some(ch) => {
-                if let Ok(process) = procfs::process::Process::new(ch.id().try_into().unwrap()) {
-                    let Ok(status) = process.status() else {
-                        return;
-                    };
-                    // memory in KB
-                    if let Some(memory) = status.vmrss {
-                        let memory = ( memory / 1024 ) as f64 / 1024.0;
-                        self.desc.memory = Some(memory)
+        Ok((
+            Self {
+                place, 
+                state: InstanceState::Stopped {
+                    data: InstanceData {
+                        desc,
+                        manifest
                     }
-                } else {
-                    if self.desc.state == model::ServerState::Running {
-                        self.desc.state = model::ServerState::Crashed
-                    }
-                }
-            }, 
-            None => {}
-        }
-        self.flush()
-    }
-
-    pub fn start(&mut self) {
-        if !matches!(self.state,InstanceState::Normal) {
-            return
-        }
-        match self.process {
-            Some(_) => {
-                log::error!("start called on running instance");
-                return
+                },
+                env
             },
-            None => {
-                log::info!("starting server {:?}", &self.place);
+            ports    
+        ))
+    }
+}
 
-                match self.patch_server_props() {
-                    Ok(_) => {},
-                    Err(e) => {
-                        log::error!("cannot patch server properties due to {}",e);
-                        self.desc.state = model::ServerState::Crashed;
-                        return
-                    }
-                }
+impl Actor for Instance {
+    type Context = Context<Self>;
 
-                let mut cmd = Command::new("java");
-                cmd.current_dir(self.place.join(self.desc.server_jar.parent().unwrap()))
-                    .arg(format!("-Xmx{}M", (self.desc.max_memory * 1024.0) as u64))
-                    .args(self.desc.java_args.iter())
-                    .arg("-jar")
-                    .arg(self.desc.server_jar.as_os_str())
-                    .arg("--nogui")
-                    .stdin(std::process::Stdio::piped())
-                ;
+    fn started(&mut self, ctx: &mut Self::Context) {
+        log::info!("Instance started: {:?}", &self.place);
 
-                match cmd.spawn() {
-                    Ok(ch) => {
-                        self.process = Some(ch);
-                        self.desc.state = model::ServerState::Running;
-                        self.hb()
-                    },
-                    Err(e) => {
-                        log::error!("cannot start server due to {} - used {:?}",e,&cmd);
-                        self.desc.state = model::ServerState::Crashed;
-                    }
-                }
+
+        let state = match &mut self.state {
+            // we whould start downloading
+            state @ InstanceState::Downloading { .. } => std::mem::replace(state, InstanceState::Swap),
+            // it's fine
+            InstanceState::Stopped { .. } | InstanceState::Crashed { .. } => return,
+            _ => {
+                log::error!("Instance started in bad state: {:?}", &self.place);
+                ctx.stop();
+                return
             }
         };
+        
+        match state {
+            InstanceState::Downloading {  desc, setup_cmd,mut payload } => {
+                if let Err(e) = utils::initialize_server_directory(&self.place,|| {
+                    Ok(utils::unpack_at(&self.place, &mut payload)?)
+                }) {
+                    log::error!("cannot initialize server directory: {:?}",e);
+                    ctx.stop();
+                    return;
+                };
+
+                let mut data = InstanceData {
+                    desc,
+                    manifest: utils::open_manifest(&self.place).unwrap()
+                };
+
+                data.desc.flush(&mut data.manifest).unwrap();
+
+                if let Some(mut cmd) = setup_cmd {
+                    let output = cmd.output().unwrap();
+                    if !output.status.success() {
+                        log::error!("setup command failed with status: {}", output.status);
+                        drop(data);
+                        self.env.servers.do_send(native_messages::Nuke { who: Arc::clone(&self.place) });
+
+                        ctx.stop();
+                        return;
+                    } else {
+                        log::trace!("setup command executed successfully");
+                        self.state = InstanceState::Stopped { data };
+                    }
+                } else {
+                    self.state = InstanceState::Stopped { data };
+                }
+            },
+            InstanceState::Crashed { .. } | InstanceState::Stopped { .. } => return,
+            _ => unreachable!()
+        }
+    }
+
+    fn stopped(&mut self, _ctx: &mut Self::Context) {
+        log::info!("Instance stopped: {:?}", &self.place);
+    }
+
+    fn stopping(&mut self, _ctx: &mut Self::Context) -> Running {
+        log::info!("Instance stopping: {:?}", &self.place);
+        Running::Stop
+    }
+}
+
+pub const MANIFEST_NAME: &str = "msrvDesc.json";
+
+pub const PATCH_SH_PATH: &str = "/app/patch.sh";
+
+pub const SERVER_PROPERTIES_FILE: &str = "server.properties";
+
+impl Instance {
+
+    pub fn run(
+        at: Arc<Path>,
+        desc: model::InstanceDescriptor,
+        data: InstanceData
+    ) -> anyhow::Result<InstanceState> {
+        let password = std::env::var("PASSWORD")
+            .expect("no password specified");
+
+        utils::patch_server_props(
+            at.as_ref(),
+            desc.port,
+            desc.rcon,
+            desc.max_memory as usize,
+            &password
+        )?;
+
+        let mut cmd = Command::new("java");
+
+        cmd.current_dir(at.as_ref().join(desc.server_jar.parent().unwrap()))
+            .arg(format!("-Xmx{}M", (desc.max_memory * 1024.0) as u64))
+            .args(desc.java_args.iter())
+            .arg("-jar")
+            .arg(desc.server_jar.as_os_str())
+            .arg("--nogui")
+            .stdin(std::process::Stdio::piped())
+        ;
+
+        return Ok(InstanceState::Starting {
+            child: cmd.spawn()?,
+            data
+        });
     }
 
     fn stop_inner(mut ch: Child, name: impl AsRef<Path>,timeout: std::time::Duration) {
-        log::info!("stopping server {:?} factually", &name.as_ref());
+        log::info!("stopping server {:?}", &name.as_ref());
         const STOP_CMD: &[u8] = b"stop\n";
         if let Some(pipe) = &mut ch.stdin {
             let mut written = 0;
@@ -217,93 +273,248 @@ impl Instance {
             match ch.wait_timeout(timeout) {
                 Ok(Some(status)) => {
                     log::info!("server {:?} stopped with status {:?}", name.as_ref(), status);
-                    Instance::dispose(ch);
+                    utils::dispose(ch);
                 }
                 Ok(None) => {
                     log::warn!("server {:?} did not stop in time, killing", name.as_ref());
                     let _ = ch.kill();
-                    Instance::dispose(ch);
+                    utils::dispose(ch);
                 }
                 Err(e) => {
                     log::error!("error while waiting for server {:?} to stop: {}", name.as_ref(), e);
                     let _ = ch.kill();
-                    Instance::dispose(ch);
+                    utils::dispose(ch);
                 }
             }
         } else {
             log::error!("stdin pipe is not available for {:?} killing", name.as_ref());
             let _ = ch.kill();
-            Instance::dispose(ch);
-        }
-    }
-
-    pub fn finish_stop(&mut self) {
-        self.desc.state = model::ServerState::Stopped;
-        self.desc.memory = None;
-        self.flush();
-        self.state = InstanceState::Normal;
-    }
-
-    pub fn stop_async(&mut self,timeout: Duration, addr: native::Service) {
-        log::info!("stopping server async {:?}", &self.place);
-
-        if !matches!(self.state,InstanceState::Normal) {
-            return
-        }
-
-        if let Some(ch) = self.process.take() {
-            self.state = InstanceState::Stopping;
-            let name = self.place.clone();
-            thread::spawn(move || {
-                Self::stop_inner(ch, &name,timeout);
-                addr.do_send(messages::InstanceStopped(name));
-            });
-            
-        };
-        
-    }
-
-
-    /// blocks current thread
-    pub fn stop(&mut self,timeout: Duration) {
-        log::info!("stopping server {:?}", &self.place);
-
-        if !matches!(self.state,InstanceState::Normal) {
-            return
-        }     
-
-        if let Some(ch) = self.process.take() {
-            Self::stop_inner(ch, self.place.clone(),timeout)
-        }
-
-        self.finish_stop()
-    }
-
-    pub fn kill(&mut self) {
-        match self.process.take() {
-            Some(mut ch) => {
-                let _ = ch.kill();
-                Instance::dispose(ch);
-
-                self.desc.state = model::ServerState::Stopped;
-                self.desc.memory = None
-            },
-            None => {}
+            utils::dispose(ch);
         }
     }
     
-    /// it only disposed process, not kills its
-    fn dispose(mut child: Child) {
-        std::thread::spawn(move || {
-            let r = child.wait();
-            match r {
-                Ok(status) => {
-                    log::info!("child with pid {} died with status: {:?}", child.id(), status);
-                }
-                Err(e) => {
-                    log::error!("error while waiting for child to die: {}", e);
-                }
+}
+
+impl Handler<messages::Tick> for Instance {
+    type Result = ();
+
+    fn handle(&mut self, _: messages::Tick, _ctx: &mut Self::Context) -> Self::Result {
+
+        let (child, data) = match &mut self.state {
+            InstanceState::Starting { child, data } | InstanceState::Running { child, data, .. } => (child,data),
+            _ => return
+        };
+
+        if let Ok(process) = procfs::process::Process::new(child.id().try_into().unwrap()) {
+            let Ok(status) = process.status() else {
+                return;
+            };
+            // memory in KB
+            if let Some(memory) = status.vmrss {
+                let memory = ( memory / 1024 ) as f64 / 1024.0;
+                data.desc.memory = Some(memory)
             }
-        });
+
+            return;
+        }
+        log::error!("cannot get process info for {:?}", &self.place);
+
+        match std::mem::replace(&mut self.state, InstanceState::Swap) {
+            InstanceState::Starting { data, .. } |
+            InstanceState::Running { data, ..  } => {
+                self.state = InstanceState::Crashed { data };
+            },
+            _ => unreachable!()
+        }
+
+    }
+}
+
+impl Handler<instance_messages::Kill> for Instance {
+    type Result = anyhow::Result<()>;
+
+    fn handle(&mut self, _msg: instance_messages::Kill, _ctx: &mut Self::Context) -> Self::Result {
+        let (mut child,data) = match std::mem::replace(&mut self.state, InstanceState::Swap) {
+            InstanceState::Running { child, data, .. } => (child,data),
+            InstanceState::Starting { child, data } => (child,data),
+            old => {
+                self.state = old;
+                log::info!("server {:?} is already stopped", &self.place);
+                return Ok(())
+            }
+        };
+        let _ = child.kill();
+        utils::dispose(child);
+
+        self.state = InstanceState::Stopped { data };
+        Ok(())
+    }
+}
+
+impl<O,F> Handler<instance_messages::Instance<O,F>> for Instance 
+    where
+        O: Send + 'static,
+        F: Sync + Send + Fn(&Instance) -> Option<O> + 'static
+{
+    type Result = Option<O>;
+
+    fn handle(&mut self, msg: instance_messages::Instance<O,F>, _ctx: &mut Self::Context) -> Self::Result {
+        (msg.f)(&self)
+    }
+}
+
+
+impl Handler<rcon::RconMessage> for Instance {
+    type Result = anyhow::Result<()>;
+
+    fn handle(&mut self, msg: rcon::RconMessage, _ctx: &mut Self::Context) -> Self::Result {
+        match &mut self.state {
+            InstanceState::Running { rcon, .. } => {
+                Ok(rcon.send(msg.cmd)?)
+            },
+            _ => {
+                log::error!("rcon is not available for {:?}", &self.place);
+                Err(anyhow!("rcon is not available for {:?}", &self.place))
+            }
+        }
+    }
+}
+
+impl Handler<instance_messages::SwitchServer> for Instance {
+    type Result = anyhow::Result<()>;
+
+    fn handle(&mut self, msg: instance_messages::SwitchServer, ctx: &mut Self::Context) -> Self::Result {
+        match std::mem::replace(&mut self.state, InstanceState::Swap) {
+            InstanceState::Running { child, data, .. } => {
+                if msg.should_run {
+                    log::info!("server {:?} is already running", &self.place);
+                    return Ok(())
+                }
+
+                log::info!("stopping server {:?}", &self.place);
+
+                Instance::stop_inner(child, &self.place,Duration::from_secs(5));
+
+                self.state = InstanceState::Stopped { data };
+
+                Ok(())
+            },
+            InstanceState::Crashed { data } | InstanceState::Stopped { data } => {
+                if msg.should_run {
+                    let timeout = self.env.timeout;
+
+                    let rcon = data.desc.rcon.clone();
+
+                    let password = self.env.password.clone();
+
+                    let this = ctx.address();
+
+                    let next_state = Self::run(
+                        Arc::clone(&self.place),
+                        data.desc.clone(),
+                        data
+                    )?;
+
+                    self.state = next_state;
+
+                    tokio::spawn(async move {
+
+                        tokio::time::sleep(timeout).await;
+
+                        let rcon = rcon::Rcon::new(
+                            rcon,
+                            password
+                        ).await;
+
+                        match rcon {
+                            Ok(rcon) => {
+                                this.do_send(rcon::RconUp {
+                                    rcon
+                                });
+                            },
+                            Err(e) => {
+                                log::error!("cannot connect to rcon: {}", e);
+                            }
+                        }
+                    });
+                };
+                Ok(())
+            },
+            bs => {
+                log::error!("cannot switch server in bad state");
+                self.state = bs;
+                return Err(anyhow!("cannot switch server in bad state"));
+            }
+        }
+    }
+}
+
+impl Handler<rcon::RconUp> for Instance {
+    type Result = anyhow::Result<()>;
+
+    fn handle(&mut self, msg: rcon::RconUp, _: &mut Self::Context) -> Self::Result {
+        match std::mem::replace(&mut self.state, InstanceState::Swap) {
+            InstanceState::Starting { data, child } => {
+                self.state = InstanceState::Running {
+                    child,
+                    rcon: msg.rcon,
+                    data
+                };
+                Ok(())
+            },
+            os => {
+                self.state = os;
+                log::error!("rcon is not available for {:?}", &self.place);
+                Err(anyhow!("rcon is not available for {:?}", &self.place))
+            }
+        }
+    }
+}
+
+impl Handler<rcon::RconSubscription> for Instance {
+    type Result = anyhow::Result<rcon::RconStream>;
+
+    fn handle(&mut self, _msg: rcon::RconSubscription, _ctx: &mut Self::Context) -> Self::Result {
+        match &mut self.state {
+            InstanceState::Running { rcon, .. } => {
+                Ok(rcon.output_stream())
+            },
+            _ => {
+                log::error!("rcon is not available for {:?}", &self.place);
+                Err(anyhow!("rcon is not available for {:?}", &self.place))
+            }
+        }
+    }
+}
+
+impl Handler<instance_messages::AlterServer> for Instance {
+    type Result = anyhow::Result<()>;
+
+    fn handle(&mut self, msg: instance_messages::AlterServer, _: &mut Self::Context) -> Self::Result {
+
+        let mfest = match &mut self.state {
+            InstanceState::Crashed { data } => data,
+            InstanceState::Stopped { data } => data,
+            _ => {
+                log::error!("cannot alter server in bad state");
+                return Err(anyhow!("cannot alter server in bad state"));
+            }
+        };
+
+        if let Some(port) = msg.port {
+            mfest.desc.port = port;
+        }
+
+        if let Some(max_memory) = msg.max_memory {
+            mfest.desc.max_memory = max_memory;
+        }
+
+        if let Some(java_args) = msg.java_args {
+            mfest.desc.java_args = java_args;
+        }
+
+        mfest.desc.flush(&mut mfest.manifest)?;
+
+        Ok(())
     }
 }

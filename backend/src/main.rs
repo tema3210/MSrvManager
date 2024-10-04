@@ -13,6 +13,8 @@ pub mod native;
 pub mod model;
 pub mod messages;
 pub mod instance;
+pub mod rcon;
+pub mod utils;
 
 #[derive(askama::Template)]
 #[template(path = "page.html")]
@@ -169,12 +171,12 @@ async fn main() -> std::io::Result<()> {
 
     let timeout = Duration::from_secs(timeout);
 
-    let native = native::Servers::init(srvrs_dir,rcons,ports,timeout).expect("cannot init native service").start();
+    let native = native::Servers::new(srvrs_dir,rcons,ports,timeout,password.clone()).start();
 
     let native_clone = native.clone();
     
     std::thread::spawn(move || {
-        let interval = std::time::Duration::from_secs(5);
+        let interval = std::time::Duration::from_secs(4) + std::time::Duration::from_millis(500);
         loop {
             std::thread::sleep(interval);
             native_clone.do_send(messages::Tick);

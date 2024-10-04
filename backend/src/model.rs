@@ -1,21 +1,12 @@
-use std::{ffi::OsString, fs::File, path::PathBuf};
+use std::{ffi::OsString, fs::File, io::{Seek, SeekFrom}, path::PathBuf};
 
+use async_graphql::SimpleObject;
 use serde::{Deserialize,Serialize};
 
-use async_graphql::Enum;
-
-#[derive(Copy, Clone, PartialEq, Eq, Enum,Deserialize, Serialize,Debug)]
-pub enum ServerState {
-    Running,
-    Stopped,
-    Crashed
-}
-
-#[derive(Clone, Deserialize, Serialize,Debug)]
+#[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct InstanceDescriptor {
     pub name: String,
     pub mods: url::Url,
-    pub state: ServerState,
     // in GB
     pub memory: Option<f64>,
     // in GB
@@ -28,11 +19,37 @@ pub struct InstanceDescriptor {
 }
 
 impl InstanceDescriptor {
-    pub fn to_file(&self,file: &mut File) -> anyhow::Result<()> {
+    pub fn flush(&self,file: &mut File) -> anyhow::Result<()> {
+        file.seek(SeekFrom::Start(0))?;
+        file.set_len(0)?;
         Ok(serde_json::to_writer(file, self)?)
     }
 
     pub fn from_file(file: &mut File) -> anyhow::Result<Self> {
         Ok(serde_json::from_reader(file)?)
     }
+}
+
+#[derive(Clone, Deserialize, Serialize, Debug)]
+pub struct Ports {
+    pub port: u16,
+    pub rcon: u16
+}
+
+#[derive(SimpleObject)]
+pub struct PortsInfo {
+    pub ports: Vec<u16>,
+    pub rcons: Vec<u16>,
+    pub port_limits: [u16;2],
+    pub rcon_limits: [u16;2]
+}
+
+#[derive(Serialize, Debug)]
+pub enum InstanceState {
+    Running,
+    Stopped,
+    Starting,
+    Crashed,
+    Downloading,
+    Busy
 }

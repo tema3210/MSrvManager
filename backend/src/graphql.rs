@@ -6,6 +6,8 @@ use tokio::time::MissedTickBehavior;
 
 use crate::*;
 
+use crate::messages::{instance_messages, native_messages};
+
 pub struct Query;
 
 #[Object]
@@ -14,25 +16,22 @@ impl Query {
         "1.1"
     }
 
-    async fn ports_taken<'cx>(&self, ctx: &Context<'cx>) -> anyhow::Result<messages::PortsInfo> {
+    async fn ports_taken<'cx>(&self, ctx: &Context<'cx>) -> anyhow::Result<model::PortsInfo> {
         let service = ctx.data_unchecked::<native::Service>();
-        Ok(service.send(messages::Ports).await?)
+        Ok(service.send(native_messages::Ports).await?)
     }
 
-    async fn rcons<'cx>(&self, ctx: &Context<'cx>) -> Vec<serde_json::Value> {
+    //todo: add here names someday
+    async fn rcons<'cx>(&self, ctx: &Context<'cx>) -> serde_json::Value {
         let service = ctx.data_unchecked::<native::Service>();
-        match service.send(messages::Instances {
-            f: |i| Some(serde_json::json!({
-                "name": i.desc.name,
-                "rcon": i.desc.rcon
-            })),
-        }).await {
-            Ok(v) => {
-                v
-            },
-            Err(_) => vec![]
+        match service.send(native_messages::Ports).await {
+            Ok(info) => serde_json::json!({
+                "rcons": info.rcons,
+            }),
+            Err(_) => serde_json::json!({
+                "rcons": []
+            })
         }
-
     }
 }
 
@@ -63,12 +62,19 @@ impl Mutation {
         should_run: bool
     ) -> Result<bool,anyhow::Error> {
         let service = ctx.data_unchecked::<native::Service>();
+
+        let addr = service.send(
+            native_messages::AddrOf::new(name.clone())
+        ).await?;
         
-        service.send(messages::SwitchServer {
-            name,
-            should_run
-        }).await??;
-        Ok(true)
+        if let Some(addr) = addr {
+            addr.send(instance_messages::SwitchServer {
+                should_run
+            }).await??;
+            return Ok(true)
+        } else {
+            return Ok(false)
+        }
     }
 
     async fn new_server<'cx>(
@@ -90,7 +96,7 @@ impl Mutation {
 
         match server_jar.extension() {
             Some(ext) => {
-                if ext != "jar" {
+                if ext != ".jar" {
                     return Err(anyhow::anyhow!("server_jar must be a path to a .jar file"));
                 }
             },
@@ -107,7 +113,7 @@ impl Mutation {
 
         let args = data.java_args.split_whitespace().map(|s| s.into()).collect::<Vec<_>>();
         
-        service.send(messages::NewServer {
+        service.send(native_messages::NewServer {
             name: data.name,
             server_jar,
             setup_cmd: data.setup_cmd,
@@ -142,11 +148,13 @@ impl Mutation {
 
         let service = ctx.data_unchecked::<native::Service>();
 
-        service.send(messages::AlterServer {
+        service.send(native_messages::AlterServer {
             name: name.clone(),
-            max_memory,
-            java_args: java_args.map(|s| s.split_whitespace().map(|s| s.into()).collect::<Vec<_>>()),
-            port,
+            msg: instance_messages::AlterServer {
+                max_memory,
+                java_args: java_args.map(|s| s.split_whitespace().map(|s| s.into()).collect::<Vec<_>>()),
+                port
+            }
         }).await??;
 
         Ok(true)
@@ -162,9 +170,32 @@ impl Mutation {
             return Err(anyhow::anyhow!("wrong password"));
         }
 
-        service.send(messages::DeleteServer {
+        service.send(native_messages::DeleteServer {
             name
         }).await??;
+        Ok(true)
+    }
+
+    async fn rcon_message<'cx>(&self,ctx: &Context<'cx>,name: String, message: String, password: String) -> Result<bool,anyhow::Error> {
+        let service = ctx.data_unchecked::<native::Service>();
+
+        let pass = ctx.data_unchecked::<Password>();
+
+        if pass.0 != password {
+            log::error!("wrong password: {}",password);
+            return Err(anyhow::anyhow!("wrong password"));
+        }
+
+        let Some(addr) = service.send(
+            native_messages::AddrOf::new(name.clone())
+        ).await? else {
+            return Err(anyhow::anyhow!("no such server: {}",name));
+        };
+
+        addr.send(rcon::RconMessage {
+            cmd: message
+        }).await??;
+
         Ok(true)
     }
 }
@@ -185,35 +216,24 @@ impl Subscription {
         })
         .then(|_| async {
             //then we ask for the data
-            match service.send(messages::Instances {
-                f: |i| Some((i.desc.name.clone(),i.desc.clone(),i.state))
+            match service.send(native_messages::Instances {
+                f: |i| Some((
+                    i.desc().cloned(),
+                    i.state(),
+                    i.place().to_owned()
+                ))
             }).await {
                 Ok(data) => {
                     let data = data
                         .into_iter()
-                        .map(|(name,val,state)| {
-                            let res = match state {
-                                instance::InstanceState::Normal => {
-                                    serde_json::json!({
-                                        "data": val,
-                                        "state": "normal"
-                                    })
-                                },
-                                instance::InstanceState::Downloading => {
-                                    serde_json::json!({
-                                        "data": null,
-                                        "state": "downloading"
-                                    })
-                                },
-                                instance::InstanceState::Stopping => {
-                                    serde_json::json!({
-                                        "data": null,
-                                        "state": "stopping"
-                                    })
-                                },
-                            
-                            };
-                            (name,res)
+                        .map(|(desc,state,place)| {
+                            (
+                                place.to_str().unwrap().to_owned(),
+                                serde_json::json!({
+                                    "data": desc,
+                                    "state": state
+                                })
+                            )
                         })
                         .collect::<std::collections::HashMap<String,serde_json::Value>>();
                     data
@@ -226,24 +246,27 @@ impl Subscription {
         })
     }
 
-    async fn instance<'cx>(&self,ctx: &Context<'cx>,name: String) -> impl futures::Stream<Item=Option<serde_json::Value>> + 'cx {
+    async fn instance<'cx>(&self,ctx: &Context<'cx>,name: String) -> anyhow::Result<impl futures::Stream<Item=Option<serde_json::Value>> + 'cx> {
         let service = ctx.data_unchecked::<native::Service>();
 
-        let name: Arc<str> = Arc::from(name.as_str());
+        let Some(addr) = service.send(
+            native_messages::AddrOf::new(name.clone())
+        ).await? else {
+            return Err(anyhow::anyhow!("no such server: {}",name));
+        };
 
-        tokio_stream::wrappers::IntervalStream::new({
+        let stream = tokio_stream::wrappers::IntervalStream::new({
             let mut i = tokio::time::interval(Duration::from_secs(2));
             i.set_missed_tick_behavior(MissedTickBehavior::Skip);
             i
         })
-        .map(move |_| Arc::clone(&name) )
+        .map( move |_| addr.clone() )
         .then({
-            move |name| async move {
+            move |addr| async move {
 
                 //then we ask for the data
-                let data = service.send(messages::Instance {
-                    name: Arc::clone(&name),
-                    f: |i| Some(i.desc.clone())
+                let data = addr.send(instance_messages::Instance {
+                    f: |i| i.desc().cloned()
                 }).await;
 
                 match data {
@@ -254,12 +277,28 @@ impl Subscription {
                         None
                     },
                     Err(e) => {
-                        log::error!("cannot get instance {}: {}",name,e);
+                        log::error!("cannot get instance: {:}",e);
                         None
                     }
                 }
             }
-        })
+        });
+
+        Ok(stream)
+    }
+
+    async fn rcon_output<'cx>(&self, ctx: &Context<'cx>, name: String) -> anyhow::Result<rcon::RconStream> {
+        let service = ctx.data_unchecked::<native::Service>();
+
+        let Some(addr) = service.send(
+            native_messages::AddrOf::new(name.clone())
+        ).await? else {
+            return Err(anyhow::anyhow!("no such server: {}",name));
+        };
+
+        let stream = addr.send(rcon::RconSubscription).await??;
+
+        Ok(stream)
     }
 }
 

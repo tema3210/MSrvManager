@@ -33,5 +33,5 @@ zip = { version = "2.2.0", default-features = false, features = ["deflate","defl
 openssl = { version = "0.10.66", features = ["vendored"] }
 bytes = "1.7.1"
 futures = "0.3.30"
-tokio-stream = "0.1.16"
+tokio-stream = { version = "0.1.16", features = ["sync"]}
 wait-timeout = "0.2.0"
