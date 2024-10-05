@@ -146,6 +146,7 @@ impl Rcon {
                 }
             });
 
+            log::info!("rcon connection established: {}", port);
             Ok(Self {
                 output_receiver: subscribe,
                 command_sender: mpsc_sender,
@@ -170,6 +171,5 @@ impl Rcon {
                 result.ok() // Filter out any errors from the stream
             });
         stream
-        // Box::pin(stream)
     }
 }

@@ -23,6 +23,10 @@ module.exports = {
       dependOn: 'shared',
       import: './src/Error.tsx',
     },
+    rcon: {
+      dependOn: 'shared',
+      import: './src/Rcon.tsx',
+    },
 
   },
   output: {

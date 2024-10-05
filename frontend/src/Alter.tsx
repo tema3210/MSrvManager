@@ -16,7 +16,11 @@ type FormData = {
     javaArgs: string;
 };
 
-const Alter = ({pageData}: SSRProps) => {
+type PageProps = {
+    name: string
+}
+
+const Alter = ({pageData}: SSRProps<PageProps>) => {
 
     const { data: ports } = useQuery<{ portsTaken: {portLimits: [number,number]} }>(gql`
         {

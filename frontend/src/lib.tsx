@@ -42,21 +42,27 @@ const client = new ApolloClient({
   cache: new InMemoryCache(),
 });
 
-export type SSRProps = {
-  pageData: any
+export type SSRProps<T = any> = {
+  pageData: T
 };
 
 // Wrapper for ApolloProvider
-export const Wrapper = ({ Component }: { Component: React.ComponentType<SSRProps> }) => {
+export function Wrapper<T>({ Component }: { Component: React.ComponentType<SSRProps<T>> }): JSX.Element {
   let pageData = window.pageData;
   return <ApolloProvider client={client}><Component pageData={pageData}/></ApolloProvider>;
 };
 
+interface OnLoad {
+  (): void
+}
+
 // OnLoad handler to render the app
-export const makeOnLoad = (C: React.ComponentType<SSRProps>) => () => {
-  const app = document.getElementById('app');
-  if (app) {
-    const root = createRoot(app);
-    root.render(<Wrapper Component={C} />);
-  }
-};
+export function makeOnLoad<T = any>(C: React.ComponentType<SSRProps<T>>): OnLoad {
+  return () => {
+    const app = document.getElementById('app');
+    if (app) {
+      const root = createRoot(app);
+      root.render(<Wrapper Component={C} />);
+    }
+  };
+} 

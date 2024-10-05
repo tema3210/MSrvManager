@@ -46,10 +46,13 @@ pub struct PortsInfo {
 
 #[derive(Serialize, Debug)]
 pub enum InstanceState {
+    // can be acted upon
     Running,
     Stopped,
-    Starting,
     Crashed,
+
+    // not displayed in UI
+    Starting,
     Downloading,
     Busy
 }

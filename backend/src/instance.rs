@@ -68,6 +68,10 @@ impl Instance {
         &*self.place
     }
 
+    pub fn name(&self) -> String {
+        self.place.file_name().unwrap().to_string_lossy().to_string()
+    }
+
     pub fn state(&self) -> model::InstanceState {
         match self.state {
             InstanceState::Running { .. } => model::InstanceState::Running,
@@ -401,7 +405,7 @@ impl Handler<instance_messages::SwitchServer> for Instance {
 
                 log::info!("stopping server {:?}", &self.place);
 
-                Instance::stop_inner(child, &self.place,Duration::from_secs(5));
+                Instance::stop_inner(child, &self.place,self.env.timeout);
 
                 self.state = InstanceState::Stopped { data };
 

@@ -224,7 +224,7 @@ impl Subscription {
                 f: |i| Some((
                     i.desc().cloned(),
                     i.state(),
-                    i.place().to_owned()
+                    i.name()
                 ))
             }).await {
                 Ok(data) => {
@@ -232,7 +232,7 @@ impl Subscription {
                         .into_iter()
                         .map(|(desc,state,place)| {
                             (
-                                place.to_str().unwrap().to_owned(),
+                                place,
                                 serde_json::json!({
                                     "data": desc,
                                     "state": state

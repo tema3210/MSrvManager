@@ -16,6 +16,11 @@ pub mod instance;
 pub mod rcon;
 pub mod utils;
 
+#[derive(serde::Deserialize)]
+struct IdParams {
+    name: String,
+}
+
 #[derive(askama::Template)]
 #[template(path = "page.html")]
 struct Page<C: Display,T: Display> {
@@ -63,13 +68,19 @@ async fn create() -> impl Responder {
     }
 }
 
-#[derive(serde::Deserialize)]
-struct AlterParams {
-    name: String,
+#[get("/rcon")]
+async fn command(info: web::Query<IdParams>) -> impl Responder {
+    Page {
+        chunk: "rcon.js",
+        title: "RCON",
+        content: serde_json::json!({
+            "name": info.name
+        })
+    }
 }
 
 #[get("/alter")]
-async fn alter(info: web::Query<AlterParams>) -> impl Responder {
+async fn alter(info: web::Query<IdParams>) -> impl Responder {
     Page {
         chunk: "alter.js",
         title: format!("Alter server {}",&info.name),
@@ -124,6 +135,7 @@ async fn main() -> std::io::Result<()> {
         .service(index)
         .service(create)
         .service(alter)
+        .service(command)
     };
 
     simple_logger::SimpleLogger::new().env().init().unwrap();
