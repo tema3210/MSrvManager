@@ -4,12 +4,12 @@ import Btn from "./Button";
 import { gql, useMutation } from "@apollo/client";
 
 type Props = {
-    instance: InstanceDescriptor,
-    deselect: () => void
+    name: string,
+    deselect: () => void,
+    state: string
 }
 
-const InstanceActions = ({instance,deselect}: Props) => {
-    const {name,state} = instance;
+const InstanceActions = ({name, state, deselect}: Props) => {
 
     const [remove] = useMutation(gql`
         mutation Mutation($name: String!,$password: String!) {

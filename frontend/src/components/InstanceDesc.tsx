@@ -32,7 +32,8 @@ const InfoItem = styled.div`
 `;
 
 type Props = {
-    instance: InstanceDescriptor, 
+    instance: InstanceDescriptor,
+    state: string, 
     selected: boolean,
     setSelected: () => void
 }
@@ -48,8 +49,8 @@ const RightTriangle = () => (<RTInner viewBox="0 0 100 100" >
 </RTInner>)
 
 
-const Desc = ({instance, selected, setSelected}: Props) => {
-    const {name, state, memory, max_memory, port} = instance;
+const Desc = ({instance, state, selected, setSelected}: Props) => {
+    const {name, memory, max_memory, port} = instance;
 
     return (
         <Inner selected={selected}>

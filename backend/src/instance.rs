@@ -144,8 +144,6 @@ impl Actor for Instance {
     type Context = Context<Self>;
 
     fn started(&mut self, ctx: &mut Self::Context) {
-        log::info!("Instance started: {:?}", &self.place);
-
 
         let state = match &mut self.state {
             // we whould start downloading
@@ -196,6 +194,8 @@ impl Actor for Instance {
             InstanceState::Crashed { .. } | InstanceState::Stopped { .. } => return,
             _ => unreachable!()
         }
+
+        log::info!("Instance started: {:?}", &self.place);
     }
 
     fn stopped(&mut self, _ctx: &mut Self::Context) {
@@ -301,8 +301,16 @@ impl Handler<messages::Tick> for Instance {
     fn handle(&mut self, _: messages::Tick, _ctx: &mut Self::Context) -> Self::Result {
 
         let (child, data) = match &mut self.state {
-            InstanceState::Starting { child, data } | InstanceState::Running { child, data, .. } => (child,data),
-            _ => return
+            InstanceState::Starting { child, data } | 
+            InstanceState::Running { child, data, .. } => (child,data),
+            InstanceState::Crashed { data } |
+            InstanceState::Stopped { data } => {
+                data.desc.memory = None;
+                let _ =  data.desc.flush(&mut data.manifest);
+                return
+            },
+            InstanceState::Downloading { .. } | InstanceState::Swap => return,
+            
         };
 
         if let Ok(process) = procfs::process::Process::new(child.id().try_into().unwrap()) {
@@ -434,6 +442,7 @@ impl Handler<instance_messages::SwitchServer> for Instance {
                             },
                             Err(e) => {
                                 log::error!("cannot connect to rcon: {}", e);
+                                this.do_send(instance_messages::Kill);
                             }
                         }
                     });
@@ -471,13 +480,31 @@ impl Handler<rcon::RconUp> for Instance {
     }
 }
 
+impl Handler<rcon::RconDown> for Instance {
+    type Result = ();
+
+    fn handle(&mut self, _: rcon::RconDown, _: &mut Self::Context) -> Self::Result {
+        match std::mem::replace(&mut self.state, InstanceState::Swap) {
+            InstanceState::Running { mut child, data, .. } | InstanceState::Starting { mut child, data } => {
+                let _ = child.kill();
+                utils::dispose(child);
+                self.state = InstanceState::Crashed { data };
+            },
+            os => {
+                self.state = os;
+                log::error!("rcon is not available for {:?}", &self.place);
+            }
+        }
+    }
+}
+
 impl Handler<rcon::RconSubscription> for Instance {
     type Result = anyhow::Result<rcon::RconStream>;
 
     fn handle(&mut self, _msg: rcon::RconSubscription, _ctx: &mut Self::Context) -> Self::Result {
         match &mut self.state {
             InstanceState::Running { rcon, .. } => {
-                Ok(rcon.output_stream())
+                Ok(Box::pin(rcon.output_stream()))
             },
             _ => {
                 log::error!("rcon is not available for {:?}", &self.place);

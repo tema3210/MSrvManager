@@ -49,6 +49,8 @@ const Index = ({}: SSRProps) => {
         }
     `);
 
+    console.log(data);
+
     const [selected,setSelected] = useState<string | null>(null);
 
     if (loading) return <Spinner />;
@@ -67,11 +69,14 @@ const Index = ({}: SSRProps) => {
                         .sort(([a], [b]) => a.localeCompare(b))
                         .map(([name,{data,state}]) => {
                             switch (state) {
-                                case "normal":
+                                case "Stopped":
+                                case "Running":
+                                case "Crashed":
                                     return (
                                         <InstanceDisplay
                                             key={name}
                                             instance={data}
+                                            state={state}
                                             selected={selected === name}
                                             setSelected={
                                                 (selected === name)
@@ -92,7 +97,7 @@ const Index = ({}: SSRProps) => {
             <TextBig>Actions:</TextBig><br />
             <Btn onClick={createOnClick}>Create Server =&gt;</Btn>
             {
-                (selected && data?.servers?.[selected].data) ? <InstanceActions instance={data.servers[selected].data} deselect={() => setSelected(null)}/> : null
+                (selected && data?.servers?.[selected].data) ? <InstanceActions name={selected} state={data.servers[selected].state} deselect={() => setSelected(null)}/> : null
             }
         </InstanceWrapper>
     </Wrapper>

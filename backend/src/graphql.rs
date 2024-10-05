@@ -1,7 +1,9 @@
+use std::pin::Pin;
+
 use async_graphql::{Schema, Subscription, Upload };
 
 use async_graphql::{Context, Object};
-use futures::StreamExt;
+use futures::{Stream, StreamExt};
 use tokio::time::MissedTickBehavior;
 
 use crate::*;
@@ -204,6 +206,8 @@ pub struct Subscription;
 
 type Servers = std::collections::HashMap<String,serde_json::Value>;
 
+type RconStream = Pin<Box<dyn Stream<Item = String> + Send + 'static>>;
+
 #[Subscription]
 impl Subscription {
     async fn servers<'cx>(&self,ctx: &Context<'cx>) -> impl futures::Stream<Item=Servers> + 'cx {
@@ -287,7 +291,7 @@ impl Subscription {
         Ok(stream)
     }
 
-    async fn rcon_output<'cx>(&self, ctx: &Context<'cx>, name: String) -> anyhow::Result<rcon::RconStream> {
+    async fn rcon_output<'cx>(&self, ctx: &Context<'cx>, name: String) -> anyhow::Result<RconStream> {
         let service = ctx.data_unchecked::<native::Service>();
 
         let Some(addr) = service.send(
@@ -298,7 +302,26 @@ impl Subscription {
 
         let stream = addr.send(rcon::RconSubscription).await??;
 
-        Ok(stream)
+        let stream = stream
+            .map(move |i| (i,addr.clone()))
+            //rewrite with unfold to terminate subscription
+            .filter_map(|(out,addr)| async move {
+                match out {
+                    rcon::RconOutput::CommandResponse(resp) => {
+                        Some(resp)
+                    },
+                    rcon::RconOutput::Error(error) => {
+                        log::error!("rcon error: {}",error);
+                        None
+                    },
+                    rcon::RconOutput::ConnectionClosed => {
+                        addr.send(rcon::RconDown).await.unwrap();
+                        None
+                    },
+                }
+            });
+
+        Ok(Box::pin(stream))
     }
 }
 
