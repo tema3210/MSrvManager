@@ -24,7 +24,7 @@ const VStack = styled.span`
 
 const OutputContainer = styled.div`
     margin-top: 1rem;
-    height: calc(100vh - 12vh - 2rem);
+    height: calc(100vh - 12vh - 6rem);
     margin-bottom: 1rem;
 `;
 
