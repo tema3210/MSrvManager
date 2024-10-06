@@ -1,7 +1,7 @@
 #![recursion_limit = "1024"]
 use std::{fmt::Display, path::PathBuf, sync::Arc, time::Duration};
 
-use actix::{Actor, System};
+use actix::Actor;
 
 use actix_web::{get, guard, middleware::{ErrorHandlerResponse, ErrorHandlers}, route, web::{self, Data}, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use askama::Template;
@@ -223,13 +223,11 @@ async fn main() -> std::io::Result<()> {
 
     tokio::spawn(async move {
         tokio::signal::ctrl_c().await.expect("Failed to listen for ctrl_c");
+        log::info!("Received ctrl-c, stopping servers...");
 
         native_clone.send(messages::native_messages::Stop).await.expect("Failed to stop servers");
 
         server_handle.stop(true).await;
-
-        log::info!("Shutting down...");
-        System::current().stop();
     });
 
     server.await

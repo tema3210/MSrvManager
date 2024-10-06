@@ -5,8 +5,8 @@ After=docker.service
 
 [Service]
 Restart=always
-ExecStart=/usr/bin/docker run --rm --init --name MSrvM --network host -v /opt/msrvManager:/data msrvmanager
-ExecStop=/usr/bin/docker stop -t 2 MSrvM
+ExecStart=/usr/bin/docker run --name MSrvM --network host -v /opt/msrvManager:/data  msrvmanager
+ExecStop=/usr/bin/docker stop --signal SIGTERM -t 150 MSrvM
 ExecStopPost=/usr/bin/docker rm -f MSrvM
 
 [Install]
