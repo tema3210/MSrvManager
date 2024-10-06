@@ -57,24 +57,23 @@ const InstanceActions = ({name, state, deselect}: Props) => {
         window.location.href = `/rcon?name=${name}`;
     };
 
-    return <div>
+    return <>
         {(state == "Running")
             ? <>
                 <Btn onClick={switchServer(false)}>Stop</Btn><br />
                 <Btn onClick={rconOnClick}>Rcon</Btn><br />
             </>
             : null
-        }<br />
-        
+        }
         {(state !== "Running")
             ? <>
                 <Btn onClick={switchServer(true)}>Start</Btn><br />
-                <Btn onClick={alterOnClick}>Alter</Btn>
+                <Btn onClick={alterOnClick}>Alter</Btn><br />
               </>
             : null
-        }<br />
+        }
         <Btn onClick={onClickDelete}>Delete</Btn><br />
-    </div>
+    </>
 }
 
 

@@ -2,62 +2,45 @@ import { makeOnLoad, SSRProps } from "./lib";
 import styled from 'styled-components';
 import { gql, useMutation, useSubscription } from '@apollo/client';
 import { useState } from "react";
+import { HomeLink, Label, SInput, TextBig } from "./components/UIComps";
+import Btn from "./components/Button";
 
-const Form = styled.form`
+const Form = styled.div`
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
+    align-items: stretch;
     gap: 1rem;
-    max-width: 400px;
+    height: 12vh;
     margin: 0 auto;
 `;
 
-const FormGroup = styled.div`
-    display: flex;
+const VStack = styled.span`
+    height: 4.5rem;
+    display: inline-flex;
+    align-items: start;
+    justify-content: stretch;
     flex-direction: column;
 `;
 
-const Label = styled.label`
-    margin-bottom: 0.5rem;
-    font-weight: bold;
-`;
-
-const Input = styled.input`
-    padding: 0.5rem;
-    font-size: 1rem;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-`;
-
-const Button = styled.button`
-    padding: 0.75rem;
-    font-size: 1rem;
-    color: #fff;
-    background-color: #d3af6c;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-
-    &:hover {
-        background-color: #db9f30;
-    }
-`;
-
 const OutputContainer = styled.div`
-    margin-top: 2rem;
-`;
-
-const OutputTitle = styled.h3`
+    margin-top: 1rem;
+    height: calc(100vh - 12vh - 2rem);
     margin-bottom: 1rem;
 `;
 
 const OutputPre = styled.pre`
     padding: 1rem;
     background-color: #f8f9fa;
+    height: 100%;
     border: 1px solid #db9f30;
     border-radius: 4px;
 `;
 
-const Rcon = ({ pageData }: SSRProps) => {
+type Props = {
+    name: string
+}
+
+const Rcon = ({ pageData }: SSRProps<Props>) => {
 
     let [password] = useState(() => prompt("Please enter the password to use rcon on this server"));
 
@@ -85,28 +68,34 @@ const Rcon = ({ pageData }: SSRProps) => {
         }
     );
 
-    if (error) return <pre>Error: {error.message}</pre>;
+    const [message,setMsg] = useState<string>("");
 
-    const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        const formData = new FormData(event.currentTarget);
-        const message = formData.get('message') as string;
-
-        await msg({ variables: { name: pageData.name, message, password } });
+    if (error) {
+        window.location.href = '/';
+        return null;
     };
+
+    // for sanity this must only be primitive string or null
+    let rconOutput: string[] = data?.rconOutput ?? [];
 
     return (
         <div>
-            <Form onSubmit={handleSubmit}>
-                <FormGroup>
-                    <Label htmlFor="message">Message:</Label>
-                    <Input type="text" id="message" name="message" required />
-                </FormGroup>
-                <Button type="submit">Send</Button>
+            <Form>
+                <VStack>
+                    <HomeLink href="/">Home</HomeLink>
+                    <TextBig>Rcon of {pageData.name} server: </TextBig>
+                </VStack>
+                <VStack>
+                    <Label>Command:</Label>
+                    <SInput type="text" value={message} onChange={(ev) => setMsg(ev.target.value)} />
+                </VStack>
+                <VStack><Btn onClick={() => { msg({ variables: { name: pageData.name, message, password } }); }}>Send</Btn></VStack>
             </Form>
             <OutputContainer>
-                <OutputTitle>Rcon Output:</OutputTitle>
-                <OutputPre>{data?.rconOutput}</OutputPre>
+                <TextBig>Rcon Output:</TextBig>
+                <OutputPre>{
+                    rconOutput.map((line) => (<p>{line}</p>))
+                }</OutputPre>
             </OutputContainer>
         </div>
     );

@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use std::pin::Pin;
 
 use async_graphql::{Schema, Subscription, Upload };
@@ -206,7 +207,9 @@ pub struct Subscription;
 
 type Servers = std::collections::HashMap<String,serde_json::Value>;
 
-type RconStream = Pin<Box<dyn Stream<Item = String> + Send + 'static>>;
+type RconStream = Pin<Box<dyn Stream<Item = Vec<String>> + Send + 'static>>;
+
+const WINDOW_SIZE: usize = 10;
 
 #[Subscription]
 impl Subscription {
@@ -302,6 +305,8 @@ impl Subscription {
 
         let stream = addr.send(rcon::RconSubscription).await??;
 
+        let mut window = VecDeque::with_capacity(WINDOW_SIZE);
+
         let stream = stream
             .map(move |i| (i,addr.clone()))
             //rewrite with unfold to terminate subscription
@@ -319,9 +324,21 @@ impl Subscription {
                         None
                     },
                 }
-            });
+            })
+            .map(move |msg| {
+                
+                window.push_back(msg);
 
-        Ok(Box::pin(stream))
+                if window.len() == WINDOW_SIZE + 1 {
+                    window.pop_front();
+                }
+
+                let dump = window.iter().cloned().collect();
+                dump
+            })
+            .boxed();
+
+        Ok(stream)
     }
 }
 

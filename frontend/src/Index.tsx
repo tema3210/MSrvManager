@@ -95,7 +95,7 @@ const Index = ({}: SSRProps) => {
         </InstanceWrapper>
         <InstanceWrapper width="25%">
             <TextBig>Actions:</TextBig><br />
-            <Btn onClick={createOnClick}>Create Server =&gt;</Btn>
+            <Btn onClick={createOnClick}>Create Server =&gt;</Btn><br />
             {
                 (selected && data?.servers?.[selected].data) ? <InstanceActions name={selected} state={data.servers[selected].state} deselect={() => setSelected(null)}/> : null
             }

@@ -113,6 +113,14 @@ impl Rcon {
             let outgoing_task = tokio::spawn(async move {
                 let mut stream = writer;
                 while let Some(msg) = msg_recv.recv().await {
+
+                    log::info!("executing: {}", msg);
+                    
+                    if msg.starts_with("stop ") || msg == "stop" {
+                        log::warn!("rcon issued stop commad...");
+                        continue
+                    }
+
                     let packet = Self::build_packet(
                         request_id.load(Self::ORDER),
                         RconMessageType::SERVERDATA_EXECCOMMAND, 
