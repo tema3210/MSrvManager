@@ -209,7 +209,7 @@ type Servers = std::collections::HashMap<String,serde_json::Value>;
 
 type RconStream = Pin<Box<dyn Stream<Item = Vec<String>> + Send + 'static>>;
 
-const WINDOW_SIZE: usize = 10;
+const WINDOW_SIZE: usize = 12;
 
 #[Subscription]
 impl Subscription {
