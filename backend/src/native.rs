@@ -84,6 +84,7 @@ impl Actor for Servers {
     }
 
     fn stopping(&mut self, ctx: &mut Self::Context) -> Running {
+        log::info!("stopping servers");
         let stop_futures = self.servers.values().map(|srv| {
             srv.addr.send(instance_messages::SwitchServer {should_run: false})
         }).collect::<FuturesUnordered<_>>();

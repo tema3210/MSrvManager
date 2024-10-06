@@ -228,6 +228,7 @@ async fn main() -> std::io::Result<()> {
 
         server_handle.stop(true).await;
 
+        log::info!("Shutting down...");
         System::current().stop();
     });
 
