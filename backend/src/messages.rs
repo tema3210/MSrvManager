@@ -12,6 +12,11 @@ pub mod native_messages {
     use super::*;
 
     #[derive(Message,Debug)]
+    #[rtype(result = "()")]
+    pub struct Stop;
+
+
+    #[derive(Message,Debug)]
     #[rtype(result = "Option<actix::Addr<A>>")]
     pub struct AddrOf<A: Actor>(pub String,PhantomData<A>);
 

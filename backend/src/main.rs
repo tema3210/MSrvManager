@@ -1,7 +1,7 @@
 #![recursion_limit = "1024"]
 use std::{fmt::Display, path::PathBuf, sync::Arc, time::Duration};
 
-use actix::Actor;
+use actix::{Actor, System};
 
 use actix_web::{get, guard, middleware::{ErrorHandlerResponse, ErrorHandlers}, route, web::{self, Data}, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use askama::Template;
@@ -195,11 +195,11 @@ async fn main() -> std::io::Result<()> {
         }
     });
 
-    let schema = Arc::new(graphql::schema(native,password));
+    let schema = Arc::new(graphql::schema(native.clone(),password));
 
     log::info!("starting HTTP server on port {port}");
 
-    HttpServer::new({
+    let server = HttpServer::new({
         move || {
             let app = App::new()
                 .app_data(Data::from(schema.clone()))
@@ -215,6 +215,21 @@ async fn main() -> std::io::Result<()> {
     })
     .workers(4)
     .bind((addr, port))?
-    .run()
-    .await
+    .run();
+
+    let native_clone = native.clone();
+
+    let server_handle = server.handle();
+
+    tokio::spawn(async move {
+        tokio::signal::ctrl_c().await.expect("Failed to listen for ctrl_c");
+
+        native_clone.send(messages::native_messages::Stop).await.expect("Failed to stop servers");
+
+        server_handle.stop(true).await;
+
+        System::current().stop();
+    });
+
+    server.await
 }

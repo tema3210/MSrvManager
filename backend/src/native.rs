@@ -101,6 +101,15 @@ impl Actor for Servers {
     }
 }
 
+impl Handler<native_messages::Stop> for Servers {
+    type Result = ();
+
+    fn handle(&mut self, _: native_messages::Stop, cx: &mut Self::Context) -> Self::Result {
+        cx.stop();
+        ()
+    }
+}
+
 impl Servers {
     fn name_to_path<P: AsRef<Path>>(&self, name: P) -> PathBuf {
         self.servers_dir.as_path().join(name)
