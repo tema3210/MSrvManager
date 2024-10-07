@@ -74,7 +74,7 @@ const Alter = ({pageData}: SSRProps<PageProps>) => {
             type: "object",
             properties: {
                 maxMemory: NumberInputData(1,32),
-                upCmd: { type: ["string", "null"] },
+                javaArgs: { type: ["string", "null"] },
                 port: NumberInputData(portLimits[0],portLimits[1])
             },
             additionalProperties: false

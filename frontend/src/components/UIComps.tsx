@@ -94,7 +94,7 @@ export const NumberInput = ({name, control, type, placeholder}: NumberInputProps
     />
 }
 
-export const DisplayRange = ({range}:{range: [number,number]}) => (<>allowed: ({range[0]};{range[1]})</>)
+export const DisplayRange = ({range}:{range: [number,number]}) => (<>allowed: {`[${range[0]};${range[1]}]`}</>)
 
 type InstanceStateDisplayProps = {
     serverName: string;

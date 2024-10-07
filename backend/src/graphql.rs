@@ -155,11 +155,19 @@ impl Mutation {
 
         let service = ctx.data_unchecked::<native::Service>();
 
+        let java_args = java_args.map(
+            |s| s.split_whitespace()
+                .filter(|s| s.starts_with('-'))
+                .filter(|s| !s.starts_with("-Xms"))
+                .map(|s| s.into())
+                .collect::<Vec<_>>()
+        );
+
         service.send(native_messages::AlterServer {
             name: name.clone(),
             msg: instance_messages::AlterServer {
                 max_memory,
-                java_args: java_args.map(|s| s.split_whitespace().map(|s| s.into()).collect::<Vec<_>>()),
+                java_args,
                 port
             }
         }).await??;
