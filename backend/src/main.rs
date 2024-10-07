@@ -3,7 +3,7 @@ use std::{fmt::Display, path::PathBuf, sync::Arc, time::Duration};
 
 use actix::Actor;
 
-use actix_web::{get, guard, middleware::{ErrorHandlerResponse, ErrorHandlers}, route, web::{self, Data}, App, HttpRequest, HttpResponse, HttpServer, Responder};
+use actix_web::{get, guard, middleware::{self, ErrorHandlerResponse, ErrorHandlers}, route, web::{self, Data}, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use askama::Template;
 use async_graphql_actix_web::{GraphQLRequest, GraphQLResponse, GraphQLSubscription};
 use actix_cors::Cors;
@@ -88,6 +88,12 @@ async fn alter(info: web::Query<IdParams>) -> impl Responder {
             "name": info.name
         })
     }
+}
+
+#[derive(Debug,Clone,Copy)]
+enum Mode {
+    Prod,
+    Dev
 }
 
 #[actix_web::main]
@@ -183,6 +189,15 @@ async fn main() -> std::io::Result<()> {
 
     let timeout = Duration::from_secs(timeout);
 
+    let mode = std::env::var("MODE")
+        .expect("no mode specified");
+
+    let mode = match mode.as_str() {
+        "prod" => Mode::Prod,
+        "dev" => Mode::Dev,
+        _ => panic!("bad mode format")
+    };
+
     let native = native::Servers::new(srvrs_dir,rcons,ports,timeout,password.clone()).start();
 
     let native_clone = native.clone();
@@ -197,12 +212,22 @@ async fn main() -> std::io::Result<()> {
 
     let schema = Arc::new(graphql::schema(native.clone(),password));
 
-    log::info!("starting HTTP server on port {port}");
+    log::info!("starting HTTP server on port {port} in {mode:?} mode");
 
     let server = HttpServer::new({
         move || {
             let app = App::new()
                 .app_data(Data::from(schema.clone()))
+                .wrap({
+                    let hds = middleware::DefaultHeaders::new()
+                        .add(("X-Server", "Actix"))
+                        .add(("X-Server-Version", "1.1"));
+
+                    match mode {
+                        Mode::Dev => hds.add(("Cache-Control", "no-store")),
+                        Mode::Prod => hds.add(("Cache-Control", "max-age=3600"))
+                    }
+                })
                 .service(
                     actix_files::Files::new("/static", "./static")
                         .prefer_utf8(true)
