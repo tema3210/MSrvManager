@@ -99,7 +99,7 @@ impl Mutation {
 
         match server_jar.extension() {
             Some(ext) => {
-                if ext != ".jar" {
+                if ext != "jar" {
                     return Err(anyhow::anyhow!("server_jar must be a path to a .jar file"));
                 }
             },
@@ -110,6 +110,10 @@ impl Mutation {
 
         if server_jar.is_absolute() {
             return Err(anyhow::anyhow!("server_jar must be a relative path"));
+        }
+
+        if data.name.is_empty() || data.name.contains('/') {
+            return Err(anyhow::anyhow!("name must not be empty, or contain '/'"));
         }
 
         let val = data.instance_upload.value(ctx)?;
@@ -213,6 +217,7 @@ const WINDOW_SIZE: usize = 12;
 
 #[Subscription]
 impl Subscription {
+    
     async fn servers<'cx>(&self,ctx: &Context<'cx>) -> impl futures::Stream<Item=Servers> + 'cx {
         let service = ctx.data_unchecked::<native::Service>();
 

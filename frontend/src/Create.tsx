@@ -177,6 +177,7 @@ const CreatePage = ({}: SSRProps) => {
     return <>
         <form onSubmit={handleSubmit(onSubmit,(e) => console.log("Es:",e))}> 
             <p><HomeLink href="/">Home</HomeLink><TextBig>Create server page: </TextBig><Btn type="submit" disabled={pLoading || uploading} >Create server</Btn></p>
+            {error && <ErrorP>{error.message}</ErrorP>}
 
             <Label>Name</Label><br />
             <SInput type="text" {...register("name")} placeholder="server name" /><br />
@@ -210,10 +211,7 @@ const CreatePage = ({}: SSRProps) => {
             <Label>Archive with server instance, no way to limit size right now</Label><br /> 
             {(uploading)? <TextBig>Uploading...</TextBig> : null}
             <SInput type="file" onChange={onChange} /><br /> 
-            {errors.instanceUpload && <ErrorP>{errors.instanceUpload.message}</ErrorP>}
-
-
-            {error && <ErrorP>{error.message}</ErrorP>}
+            {errors.instanceUpload && <ErrorP>{errors.instanceUpload.message}</ErrorP>} 
         </form>    
     </>
 }

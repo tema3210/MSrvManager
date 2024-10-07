@@ -71,7 +71,7 @@ pub fn dispose(mut child: std::process::Child) {
 
 /// make sure that dir exists and has manifest file
 pub fn initialize_server_directory<P: AsRef<Path>,R>(at: P,act: impl FnOnce() -> anyhow::Result<R>) -> anyhow::Result<R> {
-    log::trace!("preparing dir for server at {:?}",at.as_ref());
+    log::info!("preparing dir for server at {:?}",at.as_ref());
 
     std::fs::create_dir(at.as_ref()).unwrap();
 
@@ -130,7 +130,7 @@ pub fn unpack_at(at: impl AsRef<Path>, data: &mut UploadValue) -> anyhow::Result
             log::info!("copied {:?}", &*outpath);
         }
     };
-    todo!()
+    Ok(())
 }
 
 pub fn make_command(c: impl AsRef<str>) -> std::process::Command {
