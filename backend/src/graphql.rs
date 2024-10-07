@@ -48,7 +48,7 @@ pub struct NewServer {
     server_jar: String,
     java_args: String,
 
-    setup_cmd: Option<String>,
+    // setup_cmd: Option<String>,
     url: url::Url,
     max_memory: f64,
     port: u16,
@@ -123,7 +123,7 @@ impl Mutation {
         service.send(native_messages::NewServer {
             name: data.name,
             server_jar,
-            setup_cmd: data.setup_cmd,
+            // setup_cmd: data.setup_cmd,
             url: data.url,
             max_memory: data.max_memory,
             port: data.port,

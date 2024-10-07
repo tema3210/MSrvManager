@@ -269,7 +269,7 @@ impl Handler<native_messages::NewServer> for Servers {
         let instance = Instance::create(
             Arc::clone(&instance_place),
             desc,
-            msg.setup_cmd,
+            // msg.setup_cmd,
             msg.instance_upload,
             instance::InstanceEnv { 
                 servers: ctx.address(),

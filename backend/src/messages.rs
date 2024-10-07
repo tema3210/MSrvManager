@@ -44,7 +44,7 @@ pub mod native_messages {
         pub server_jar: PathBuf,
         pub java_args: Vec<OsString>,
 
-        pub setup_cmd: Option<String>,
+        // pub setup_cmd: Option<String>,
         pub url: url::Url,
         pub instance_upload: UploadValue,
         pub max_memory: f64,
@@ -57,7 +57,7 @@ pub mod native_messages {
             f
                 .debug_struct("NewServer")
                 .field("name", &self.name)
-                .field("setup_cmd", &self.setup_cmd)
+                // .field("setup_cmd", &self.setup_cmd)
                 .field("url", &self.url)
                 .field("instance_upload", &"UploadValue")
                 .field("max_memory", &self.max_memory)

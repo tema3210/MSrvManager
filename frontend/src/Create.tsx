@@ -13,7 +13,7 @@ import { NumberInputData } from "./schema_utils";
 type NewServerReq = {
     name: string,
 
-    setupCmd: string | null,
+    // setupCmd: string | null,
     serverJar: string,
     javaArgs: string | null,
 
@@ -49,13 +49,13 @@ const CreatePage = ({}: SSRProps) => {
         }
     `);
 
-    const memoryLimits: [number,number] = [1,32];
+    const memoryLimits: [number,number] = [1,8];
 
     const schema = useMemo(() => {
         return {
             type: "object",
             properties: {
-              name: { "type": "string", minLength: 4 },
+              name: { "type": "string", minLength: 4},
               serverJar: { "type": "string", minLength: 7 }, // aka ./_.jar
               upCmd: { "type": "string" },
               javaArgs: { "type": "string" },
@@ -106,7 +106,7 @@ const CreatePage = ({}: SSRProps) => {
       defaultValues: {
         name: "",
         serverJar: "",
-        setupCmd: null,
+        // setupCmd: null,
         url: "",
         instanceUpload: null
       }
@@ -119,9 +119,12 @@ const CreatePage = ({}: SSRProps) => {
     `);
 
     const onSubmit = async (formData: FormData) => {
+        let name = formData.name.trim().replace(/(=|&|\?)*/g,"");
+
         let data: NewServerReq = {
           ...formData,
-          setupCmd: formData.setupCmd?.length === 0 ? null : formData.setupCmd,
+          name,
+          // setupCmd: formData.setupCmd?.length === 0 ? null : formData.setupCmd,
           instanceUpload: formData.instanceUpload?.formData[0]!,
           maxMemory: (formData.maxMemory as any)?.value ?? null,
           port: (formData.port as any)?.value ?? null,
@@ -184,16 +187,16 @@ const CreatePage = ({}: SSRProps) => {
             {errors.name && <ErrorP>{errors.name.message}</ErrorP>}
 
             <Label>Path to jar in archive to be executed as a server</Label><br />
-            <SInput type="text" {...register("serverJar")} placeholder="relative path required" /><br />
+            <SInput type="text" {...register("serverJar")} placeholder="relative path required, aka ./_.jar" /><br />
             {errors.serverJar && <ErrorP>{errors.serverJar.message}</ErrorP>}
 
             <Label>Paramaters for JVM, -Xmx_ excluded</Label><br />
             <SInput type="text" {...register("javaArgs")} placeholder="JVM params" /><br />
             {errors.javaArgs && <ErrorP>{errors.javaArgs.message}</ErrorP>}
 
-            <Label>Setup command to be run once</Label><br />
+            {/* <Label>Setup command to be run once</Label><br />
             <SInput type="text" {...register("setupCmd")} placeholder="command run once at the root of archive" /><br />
-            {errors.setupCmd && <ErrorP>{errors.setupCmd.message}</ErrorP>}
+            {errors.setupCmd && <ErrorP>{errors.setupCmd.message}</ErrorP>} */}
 
             <Label>Url to client modpack</Label><br />
             <SInput type="text" {...register("url")} placeholder="url to mod list" /><br />

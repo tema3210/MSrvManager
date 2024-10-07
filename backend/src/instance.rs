@@ -39,7 +39,7 @@ pub enum InstanceState {
     },
     Downloading {
         desc: model::InstanceDescriptor,
-        setup_cmd: Option<Command>,
+        // setup_cmd: Option<Command>,
         payload: UploadValue
     },
     /// this state is blank, used for transactional operations
@@ -99,13 +99,13 @@ impl Instance {
     pub fn create(
         at: Arc<Path>,
         desc: model::InstanceDescriptor,
-        cmd: Option<String>,
+        // cmd: Option<String>,
         payload: UploadValue,
         env: InstanceEnv,
     ) -> Self {
         let state = InstanceState::Downloading {
             desc,
-            setup_cmd: cmd.map(utils::make_command),
+            // setup_cmd: cmd.map(utils::make_command),
             payload
         };
 
@@ -162,7 +162,7 @@ impl Actor for Instance {
         };
         
         match state {
-            InstanceState::Downloading {  desc, setup_cmd,mut payload } => {
+            InstanceState::Downloading {  desc,mut payload, } => { // setup_cmd
                 if let Err(e) = utils::initialize_server_directory(&self.place,|| {
                     Ok(utils::unpack_at(&self.place, &mut payload)?)
                 }) {
@@ -178,22 +178,22 @@ impl Actor for Instance {
 
                 data.desc.flush(&mut data.manifest).unwrap();
 
-                if let Some(mut cmd) = setup_cmd {
-                    let output = cmd.output().unwrap();
-                    if !output.status.success() {
-                        log::error!("setup command failed with status: {}", output.status);
-                        drop(data);
-                        self.env.servers.do_send(native_messages::Nuke { who: Arc::clone(&self.place) });
+                // if let Some(mut cmd) = setup_cmd {
+                //     let output = cmd.output().unwrap();
+                //     if !output.status.success() {
+                //         log::error!("setup command failed with status: {}", output.status);
+                //         drop(data);
+                //         self.env.servers.do_send(native_messages::Nuke { who: Arc::clone(&self.place) });
 
-                        ctx.stop();
-                        return;
-                    } else {
-                        log::trace!("setup command executed successfully");
-                        self.state = InstanceState::Stopped { data };
-                    }
-                } else {
-                    self.state = InstanceState::Stopped { data };
-                }
+                //         ctx.stop();
+                //         return;
+                //     } else {
+                //         log::trace!("setup command executed successfully");
+                //         self.state = InstanceState::Stopped { data };
+                //     }
+                // } else {
+                //     self.state = InstanceState::Stopped { data };
+                // }
             },
             InstanceState::Crashed { .. } | InstanceState::Stopped { .. } => return,
             _ => unreachable!()
