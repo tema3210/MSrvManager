@@ -118,7 +118,11 @@ impl Mutation {
 
         let val = data.instance_upload.value(ctx)?;
 
-        let args = data.java_args.split_whitespace().map(|s| s.into()).collect::<Vec<_>>();
+        let args = data.java_args.split_whitespace()
+            .filter(|s| s.starts_with('-'))
+            .filter(|s| !s.starts_with("-Xms"))
+            .map(|s| s.into())
+            .collect::<Vec<_>>();
         
         service.send(native_messages::NewServer {
             name: data.name,
