@@ -5,7 +5,7 @@ import { InstanceDescriptor } from "./model";
 import { useForm } from "react-hook-form";
 import { ajvResolver } from "@hookform/resolvers/ajv";
 import { fullFormats } from "ajv-formats/dist/formats";
-import { DisplayRange, ErrorP, HomeLink, Label, NumberInput, SInput, TextBig } from "./components/UIComps";
+import { DisplayRange, ErrorP, HomeLink, Label, NumberInput, TextArea, TextBig } from "./components/UIComps";
 import Btn from "./components/Button";
 import { NumberInputData } from "./schema_utils";
 import { useMemo } from "react";
@@ -122,7 +122,7 @@ const Alter = ({pageData}: SSRProps<PageProps>) => {
             {errorM && <ErrorP>{errorM.message}</ErrorP>}
 
             <Label>Paramaters for JVM, -Xmx_ excluded</Label><br />
-            <SInput type="text" {...register("javaArgs")} placeholder="JVM params" /><br />
+            <TextArea name="javaArgs" control={control} placeholder="JVM params" /><br />
             {errors.javaArgs && <ErrorP>{errors.javaArgs.message}</ErrorP>}
 
             <Label>Max Memory, (1;32)</Label><br />

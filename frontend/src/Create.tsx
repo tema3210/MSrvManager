@@ -3,7 +3,7 @@ import gql from "graphql-tag";
 import { ajvResolver } from '@hookform/resolvers/ajv';
 import { makeOnLoad, SSRProps } from "./lib";
 import { useForm } from "react-hook-form";
-import { DisplayRange, ErrorP, HomeLink, Label, NumberInput, SInput, TextBig } from "./components/UIComps";
+import { DisplayRange, ErrorP, HomeLink, Label, NumberInput, SInput, TextArea, TextBig } from "./components/UIComps";
 import { PortsInfo } from "./model";
 import { ChangeEvent, useMemo, useState } from "react";
 import { fullFormats } from "ajv-formats/dist/formats";
@@ -191,7 +191,7 @@ const CreatePage = ({}: SSRProps) => {
             {errors.serverJar && <ErrorP>{errors.serverJar.message}</ErrorP>} */}
 
             <Label>Paramaters for JVM, -Xmx_ excluded</Label><br />
-            <SInput type="text" {...register("javaArgs")} placeholder="JVM params" /><br />
+            <TextArea name="javaArgs" control={control} placeholder="JVM params" /><br />
             {errors.javaArgs && <ErrorP>{errors.javaArgs.message}</ErrorP>}
 
             {/* <Label>Setup command to be run once</Label><br />

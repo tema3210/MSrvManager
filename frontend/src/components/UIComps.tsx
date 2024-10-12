@@ -31,7 +31,7 @@ export const SInput = styled.input`
     margin-bottom: 15px;
 
     &:focus {
-        border-color: #007BFF;
+        border-color: #db9f30;
         outline: none;
     }
 `;
@@ -50,13 +50,16 @@ export const ErrorP = styled.p`
 `;
 
 type NumberInputProps = {
-    control: Control<any>,
-    name: string,
-    type: "float" | "int",
-    placeholder: string,
+    type: "float" | "int"
 }
 
-export const NumberInput = ({name, control, type, placeholder}: NumberInputProps) => {
+type HookFormProps = {
+    control: Control<any>,
+    name: string,
+    placeholder?: any
+};
+
+export const NumberInput = ({name, control, type, placeholder}: NumberInputProps & HookFormProps) => {
     return <Controller
         name={name}
         control={control}
@@ -124,3 +127,35 @@ export const InstanceStateDisplay = ({ serverName, state }: InstanceStateDisplay
         </InstanceStateContainer>
     );
 };
+
+const TextAreaInner = styled.textarea<{ height: number }>`
+    width: 100%;
+    height: ${({ height }) => `${(height + 1) * 1.2}rem`};
+    line-height: 1.2rem;
+    padding: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+    font-size: 1rem;
+    margin-bottom: 15px;
+    resize: none;
+
+    &:focus {
+        border-color: #db9f30;
+        outline: none;
+    }
+`;
+
+type TextAreaProps = {};
+
+export const TextArea = ({name, control, placeholder}: TextAreaProps & HookFormProps) => (
+    <Controller
+        name={name}
+        control={control}
+        defaultValue=""
+        render={({field}) => {
+            const height = (field.value ?? "").split("\n").length + 1;
+            return <TextAreaInner {...field} height={height} placeholder={placeholder} />
+        }}
+    />
+)
