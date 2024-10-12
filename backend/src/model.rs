@@ -13,7 +13,8 @@ pub struct InstanceDescriptor {
     pub max_memory: f64,
     pub port: u16,
 
-    pub server_jar: PathBuf,
+    // pub server_jar: PathBuf,
+
     pub java_args: Vec<OsString>,
     pub rcon: u16,
 }

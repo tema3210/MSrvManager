@@ -70,9 +70,18 @@ impl Actor for Servers {
                     Some((arc_path.clone(), instance, ports))
                 },
                 Err(e) => {
-                    log::error!("couldn't load server at {:?} due to {:?}, nuking", &arc_path, e);
-                    let _ = std::fs::remove_dir_all(arc_path.as_ref());
-                    None
+                    match e {
+                        instance::LoadError::PathIsNotDir => None,
+                        instance::LoadError::NoManifest(e) => {
+                            log::error!("couldn't load server at {:?} due to: {:?} - nuking", &arc_path, e);
+                            let _ = std::fs::remove_dir_all(arc_path.as_ref());
+                            None
+                        },
+                        instance::LoadError::BadManifest => {
+                            log::error!("couldn't load server at {:?} due to bad manifest - skipping \n TODO: IMPLEMENT REPORTING", &arc_path);
+                            None
+                        },
+                    }
                 }
             }
         }).for_each(|(arc_path, instance,ports)| {
@@ -254,7 +263,7 @@ impl Handler<native_messages::NewServer> for Servers {
         log::info!("create server at {:?}", &*path);
 
         let desc: model::InstanceDescriptor = model::InstanceDescriptor {
-            server_jar: msg.server_jar,
+            // server_jar: msg.server_jar,
             name: msg.name,
             mods: msg.url,
             max_memory: msg.max_memory,
@@ -314,7 +323,6 @@ impl Handler<native_messages::AlterServer> for Servers {
         Ok(())
     }
 }
-
 
 impl Handler<messages::Tick> for Servers {
     type Result = MessageResult<messages::Tick>;

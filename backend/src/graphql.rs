@@ -45,7 +45,7 @@ pub struct NewServer {
     name: String,
 
     /// path to jar of server inside of upload
-    server_jar: String,
+    // server_jar: String,
     java_args: String,
 
     // setup_cmd: Option<String>,
@@ -95,22 +95,22 @@ impl Mutation {
             return Err(anyhow::anyhow!("wrong password"));
         }
 
-        let server_jar: PathBuf = data.server_jar.parse()?;
+        // let server_jar: PathBuf = data.server_jar.parse()?;
 
-        match server_jar.extension() {
-            Some(ext) => {
-                if ext != "jar" {
-                    return Err(anyhow::anyhow!("server_jar must be a path to a .jar file"));
-                }
-            },
-            None => {
-                return Err(anyhow::anyhow!("server_jar must be a path to a .jar file"));
-            }
-        }
+        // match server_jar.extension() {
+        //     Some(ext) => {
+        //         if ext != "jar" {
+        //             return Err(anyhow::anyhow!("server_jar must be a path to a .jar file"));
+        //         }
+        //     },
+        //     None => {
+        //         return Err(anyhow::anyhow!("server_jar must be a path to a .jar file"));
+        //     }
+        // }
 
-        if server_jar.is_absolute() {
-            return Err(anyhow::anyhow!("server_jar must be a relative path"));
-        }
+        // if server_jar.is_absolute() {
+        //     return Err(anyhow::anyhow!("server_jar must be a relative path"));
+        // }
 
         if data.name.is_empty() || data.name.contains('/') {
             return Err(anyhow::anyhow!("name must not be empty, or contain '/'"));
@@ -126,7 +126,7 @@ impl Mutation {
         
         service.send(native_messages::NewServer {
             name: data.name,
-            server_jar,
+            // server_jar,
             // setup_cmd: data.setup_cmd,
             url: data.url,
             max_memory: data.max_memory,
@@ -322,8 +322,6 @@ impl Subscription {
 
         let stream = addr.send(rcon::RconSubscription).await??;
 
-        let mut window = VecDeque::with_capacity(WINDOW_SIZE);
-
         let stream = stream
             .map(move |i| (i,addr.clone()))
             //rewrite with unfold to terminate subscription
@@ -342,16 +340,19 @@ impl Subscription {
                     },
                 }
             })
-            .map(move |msg| {
+            .map({
+                let mut window = VecDeque::with_capacity(WINDOW_SIZE);
+                move |msg| {
                 
-                window.push_back(msg);
-
-                if window.len() == WINDOW_SIZE + 1 {
-                    window.pop_front();
+                    window.push_back(msg);
+    
+                    if window.len() == WINDOW_SIZE + 1 {
+                        window.pop_front();
+                    }
+    
+                    let dump = window.iter().cloned().collect();
+                    dump
                 }
-
-                let dump = window.iter().cloned().collect();
-                dump
             })
             .boxed();
 

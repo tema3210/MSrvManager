@@ -56,9 +56,9 @@ const CreatePage = ({}: SSRProps) => {
             type: "object",
             properties: {
               name: { "type": "string", minLength: 4},
-              serverJar: { "type": "string", minLength: 7 }, // aka ./_.jar
+              // serverJar: { "type": "string", minLength: 7 }, // aka ./_.jar
               upCmd: { "type": "string" },
-              javaArgs: { "type": "string" },
+              javaArgs: { "type": "string", minLength: 10 },
               setupCmd: {
                 oneOf: [
                   { type: "string" },
@@ -105,7 +105,7 @@ const CreatePage = ({}: SSRProps) => {
       }),
       defaultValues: {
         name: "",
-        serverJar: "",
+        // serverJar: "",
         // setupCmd: null,
         url: "",
         instanceUpload: null
@@ -186,9 +186,9 @@ const CreatePage = ({}: SSRProps) => {
             <SInput type="text" {...register("name")} placeholder="server name" /><br />
             {errors.name && <ErrorP>{errors.name.message}</ErrorP>}
 
-            <Label>Path to jar in archive to be executed as a server</Label><br />
+            {/* <Label>Path to jar in archive to be executed as a server</Label><br />
             <SInput type="text" {...register("serverJar")} placeholder="relative path required, aka ./_.jar" /><br />
-            {errors.serverJar && <ErrorP>{errors.serverJar.message}</ErrorP>}
+            {errors.serverJar && <ErrorP>{errors.serverJar.message}</ErrorP>} */}
 
             <Label>Paramaters for JVM, -Xmx_ excluded</Label><br />
             <SInput type="text" {...register("javaArgs")} placeholder="JVM params" /><br />

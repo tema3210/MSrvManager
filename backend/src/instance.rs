@@ -94,6 +94,13 @@ impl Instance {
     }
 }
 
+#[derive(Debug)]
+pub enum LoadError {
+    PathIsNotDir,
+    NoManifest(std::io::Error),
+    BadManifest
+}
+
 //ctors
 impl Instance {
     pub fn create(
@@ -112,16 +119,16 @@ impl Instance {
         Self {place: at, state, env}
     }
 
-    pub fn load(place: Arc<Path>, env: InstanceEnv ) -> anyhow::Result<(Self,model::Ports)> {
+    pub fn load(place: Arc<Path>, env: InstanceEnv ) -> Result<(Self,model::Ports),LoadError> {
 
         log::info!("Loading server instance at {:?}",&*place);
 
         if !place.is_dir() {
-            return Err(anyhow!("load should be called on dir"));
+            return Err(LoadError::PathIsNotDir);
         }
 
-        let mut manifest = utils::open_manifest(&*place)?;
-        let desc: model::InstanceDescriptor = model::InstanceDescriptor::from_file(&mut manifest)?;
+        let mut manifest = utils::open_manifest(&*place).map_err(|e| LoadError::NoManifest(e))?;
+        let desc: model::InstanceDescriptor = model::InstanceDescriptor::from_file(&mut manifest).map_err(|_| LoadError::BadManifest)?;
 
         let ports = model::Ports {
             port: desc.port,
@@ -238,11 +245,14 @@ impl Instance {
 
         let mut cmd = Command::new("java");
 
-        cmd.current_dir(at.as_ref().join(desc.server_jar.parent().unwrap()))
+        cmd.current_dir(
+            at.as_ref()
+                // .join(desc.server_jar.parent().unwrap())
+        )
             .arg(format!("-Xmx{}M", (desc.max_memory * 1024.0) as u64))
             .args(desc.java_args.iter())
-            .arg("-jar")
-            .arg(desc.server_jar.as_os_str())
+            // .arg("-jar")
+            // .arg(desc.server_jar.as_os_str())
             .arg("--nogui")
             .stdin(std::process::Stdio::piped())
         ;

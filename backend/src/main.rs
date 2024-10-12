@@ -218,20 +218,24 @@ async fn main() -> std::io::Result<()> {
         move || {
             let app = App::new()
                 .app_data(Data::from(schema.clone()))
-                .wrap({
-                    let hds = middleware::DefaultHeaders::new()
-                        .add(("X-Server", "Actix"))
-                        .add(("X-Server-Version", "1.1"));
-
-                    match mode {
-                        Mode::Dev => hds.add(("Cache-Control", "no-store")),
-                        Mode::Prod => hds.add(("Cache-Control", "max-age=3600"))
-                    }
-                })
                 .service(
-                    actix_files::Files::new("/static", "./static")
-                        .prefer_utf8(true)
+                    web::scope("/static")
+                        .wrap({
+                            let hds = middleware::DefaultHeaders::new()
+                                .add(("X-Server", "Actix"))
+                                .add(("X-Server-Version", "1.1"));
+        
+                            match mode {
+                                Mode::Dev => hds.add(("Cache-Control", "no-store")),
+                                Mode::Prod => hds.add(("Cache-Control", "max-age=3600"))
+                            }
+                        })
+                        .service(
+                            actix_files::Files::new("/", "./static")
+                                .prefer_utf8(true)
+                        )
                 );
+                
             let app = router(app)
                 .wrap(Cors::permissive());
                 // .wrap(actix_web::middleware::Logger::default());

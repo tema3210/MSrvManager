@@ -41,7 +41,7 @@ pub mod native_messages {
     pub struct NewServer {
         pub name: String,
 
-        pub server_jar: PathBuf,
+        // pub server_jar: PathBuf,
         pub java_args: Vec<OsString>,
 
         // pub setup_cmd: Option<String>,
@@ -63,7 +63,7 @@ pub mod native_messages {
                 .field("max_memory", &self.max_memory)
                 .field("port", &self.port)
                 .field("rcon", &self.rcon)
-                .field("server_jar", &self.server_jar)
+                // .field("server_jar", &self.server_jar)
                 .finish()
         }
     }
