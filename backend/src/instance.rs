@@ -245,11 +245,16 @@ impl Instance {
 
         let mut cmd = Command::new("java");
 
+        let classpath = utils::generate_classpath(at.as_ref().join("libraries"))?;
+
+        log::info!("classpath: {:?}", classpath);
+
         cmd.current_dir(
             at.as_ref()
                 // .join(desc.server_jar.parent().unwrap())
         )
             .arg(format!("-Xmx{}M", (desc.max_memory * 1024.0) as u64))
+            .args(["-cp".into(), classpath])
             .args(desc.java_args.iter())
             // .arg("-jar")
             // .arg(desc.server_jar.as_os_str())

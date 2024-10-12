@@ -190,7 +190,7 @@ const CreatePage = ({}: SSRProps) => {
             <SInput type="text" {...register("serverJar")} placeholder="relative path required, aka ./_.jar" /><br />
             {errors.serverJar && <ErrorP>{errors.serverJar.message}</ErrorP>} */}
 
-            <Label>Paramaters for JVM, -Xmx_ excluded</Label><br />
+            <Label>Paramaters for JVM, -Xmx, -Xms, classpath excluded</Label><br />
             <TextArea name="javaArgs" control={control} placeholder="JVM params" /><br />
             {errors.javaArgs && <ErrorP>{errors.javaArgs.message}</ErrorP>}
 

@@ -121,7 +121,7 @@ const Alter = ({pageData}: SSRProps<PageProps>) => {
             <p><HomeLink href="/">Home</HomeLink><TextBig>Alter {instanceData?.name} page: </TextBig><Btn type="submit" >Change server</Btn></p>
             {errorM && <ErrorP>{errorM.message}</ErrorP>}
 
-            <Label>Paramaters for JVM, -Xmx_ excluded</Label><br />
+            <Label>Paramaters for JVM, -Xmx, -Xms, classpath excluded</Label><br />
             <TextArea name="javaArgs" control={control} placeholder="JVM params" /><br />
             {errors.javaArgs && <ErrorP>{errors.javaArgs.message}</ErrorP>}
 

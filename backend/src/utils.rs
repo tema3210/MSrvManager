@@ -4,7 +4,7 @@ use zip::ZipArchive;
 
 use crate::*;
 
-use std::{fs::{File, Permissions}, ops::Range, path::Path, process::Command};
+use std::{ffi::OsString, fs::{File, Permissions}, ops::Range, path::Path, process::Command};
 
 #[derive(Debug)]
 pub struct Indices(Range<u16>, bit_set::BitSet);
@@ -87,6 +87,36 @@ pub fn open_manifest<P: AsRef<Path>>(at: P) -> Result<File, std::io::Error> {
         .write(true)    
         .read(true)
         .open(at.as_ref().join(instance::MANIFEST_NAME))
+}
+
+pub fn generate_classpath<P: AsRef<Path>>(at: P) -> anyhow::Result<OsString> {
+
+    let separator = if cfg!(target_os = "windows") { ";" } else { ":" };
+
+    std::fs::read_dir(at.as_ref())?
+        .filter_map(|e| e.ok())
+        .try_fold(OsString::new(),|mut cp,e| {
+
+            // these we don't preload
+            if e.path().ends_with("net/minecraft") {
+                return Ok(cp)
+            }
+
+            if e.path().is_dir() {
+                let icp = generate_classpath(at.as_ref())?;
+                cp.push(icp);
+                cp.push(separator);
+                return Ok(cp)
+            }
+
+            if e.path().extension().map(|e| e == "jar").unwrap_or(false) {
+                cp.push(&e.path());
+                cp.push(separator);
+                return Ok(cp)
+            };
+
+            Ok(cp)
+        })
 }
 
 
