@@ -119,8 +119,8 @@ impl Mutation {
         let val = data.instance_upload.value(ctx)?;
 
         let args = data.java_args.split_whitespace()
-            .filter(|s| s.starts_with('-'))
             .filter(|s| !s.starts_with("-Xms"))
+            .filter(|s| !s.starts_with("-Xmx"))
             .map(|s| s.into())
             .collect::<Vec<_>>();
         
