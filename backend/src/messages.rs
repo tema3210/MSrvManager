@@ -1,7 +1,6 @@
-use std::{ffi::OsString, path::Path};
+use std::path::Path;
 
 use actix::Message;
-use async_graphql::UploadValue;
 
 use crate::*;
 
@@ -38,32 +37,31 @@ pub mod native_messages {
 
     #[derive(Message)]
     #[rtype(result = "anyhow::Result<()>")]
-    pub struct NewServer {
-        pub name: String,
+    pub struct InitServer<P: Send + 'static> {
 
         // pub server_jar: PathBuf,
-        pub java_args: Vec<OsString>,
+        pub java_args: Vec<String>,
 
         // pub setup_cmd: Option<String>,
         pub url: url::Url,
-        pub instance_upload: UploadValue,
+        // pub instance_upload: UploadValue,
         pub max_memory: f64,
-        pub port: u16,
-        pub rcon: u16
+        pub ports: model::Ports,
+
+        pub ext: P
     }
 
-    impl std::fmt::Debug for NewServer {
+    impl<P: Send + 'static + std::fmt::Debug > std::fmt::Debug for InitServer<P> {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             f
                 .debug_struct("NewServer")
-                .field("name", &self.name)
                 // .field("setup_cmd", &self.setup_cmd)
                 .field("url", &self.url)
                 .field("instance_upload", &"UploadValue")
                 .field("max_memory", &self.max_memory)
-                .field("port", &self.port)
-                .field("rcon", &self.rcon)
+                .field("ports", &self.ports)
                 // .field("server_jar", &self.server_jar)
+                .field("ext", &self.ext)
                 .finish()
         }
     }
@@ -89,7 +87,11 @@ pub mod native_messages {
             F: Send + Sync + Fn(&instance::Instance) -> Option<O> + 'static,
     {
         pub f: F,
-}
+    }
+
+    #[derive(Message,Debug)]
+    #[rtype(result = "Vec<String>")]
+    pub struct Broken;
 
 
 }
@@ -113,7 +115,7 @@ pub mod instance_messages {
     pub struct AlterServer {
         pub max_memory: Option<f64>,
         pub port: Option<u16>,
-        pub java_args: Option<Vec<OsString>>,
+        pub java_args: Option<Vec<String>>,
     }
 
     #[derive(Message,Debug)]

@@ -5,6 +5,7 @@ use std::{
 };
 
 use anyhow::anyhow;
+use async_graphql::UploadValue;
 use futures::{stream::FuturesUnordered, StreamExt};
 use instance::Instance;
 
@@ -29,6 +30,8 @@ pub struct Servers {
     password: String,
 
     servers: HashMap<std::sync::Arc<Path>, Server>,
+
+    broken: Vec<std::sync::Arc<Path>>,
 }
 
 impl Actor for Servers {
@@ -47,7 +50,7 @@ impl Actor for Servers {
             } else {
                 None
             }
-        }).filter_map(|at| {
+        }).for_each(|at| {
             let arc_path: Arc<Path> = at.path().into();
             let env = instance::InstanceEnv {
                 timeout: self.timeout,
@@ -56,39 +59,27 @@ impl Actor for Servers {
             };
             match instance::Instance::load(Arc::clone(&arc_path),env) {
                 Ok((instance,ports)) => {
-
-                    if let Err(e) = self.port_range.try_take(ports.port) {
-                        log::error!("a servers {:?} port {} is taken", at.path(), e);
-                        return None;
+                    if self.take_ports(&ports) {
+                        self.servers.insert(arc_path, Server {
+                            addr: instance.start(),
+                            ports
+                        });
                     }
-
-                    if let Err(e) = self.rcon_range.try_take(ports.rcon) {
-                        log::error!("a servers {:?} rcon port {} is taken", at.path(), e);
-                        return None;
-                    }
-
-                    Some((arc_path.clone(), instance, ports))
                 },
                 Err(e) => {
                     match e {
-                        instance::LoadError::PathIsNotDir => None,
+                        instance::LoadError::PathIsNotDir => {},
                         instance::LoadError::NoManifest(e) => {
                             log::error!("couldn't load server at {:?} due to: {:?} - nuking", &arc_path, e);
                             let _ = std::fs::remove_dir_all(arc_path.as_ref());
-                            None
                         },
                         instance::LoadError::BadManifest => {
-                            log::error!("couldn't load server at {:?} due to bad manifest - skipping \n TODO: IMPLEMENT REPORTING", &arc_path);
-                            None
+                            log::error!("couldn't load server at {:?} due to bad manifest - broken", &arc_path);
+                            self.broken.push(arc_path);
                         },
-                    }
+                    };
                 }
-            }
-        }).for_each(|(arc_path, instance,ports)| {
-            self.servers.insert(arc_path, Server {
-                addr: instance.start(),
-                ports
-            });
+            };
         });
     }
 
@@ -145,7 +136,8 @@ impl Servers {
             port_range,
             servers: HashMap::new(),
             timeout,
-            password
+            password,
+            broken: Vec::new(),
         };
         
     }
@@ -165,9 +157,88 @@ impl Servers {
         std::fs::remove_dir_all(path)?;
         Ok(())
     }
+
+    fn take_ports(&mut self, ports: &model::Ports) -> bool {
+        if let Err(e) = self.port_range.try_take(ports.port) {
+            log::error!(" port {} is taken", e);
+            return false;
+        }
+
+        if let Err(e) = self.rcon_range.try_take(ports.rcon) {
+            log::error!(" rcon port {} is taken", e);
+            let _ = self.port_range.free(ports.port);
+            return false;
+        }
+
+        return  true
+    }
+
+    fn add_instance(&mut self, path: Arc<Path>, instance: instance::Instance, ports: model::Ports) {
+        self.servers.insert(path, Server {
+            addr: instance.start(),
+            ports
+        });
+    }
+    
 }
 
 pub type Service = actix::Addr<Servers>;
+
+impl Handler<native_messages::Broken> for Servers {
+    type Result = Vec<String>;
+
+    fn handle(&mut self, _: native_messages::Broken, _: &mut Self::Context) -> Self::Result {
+        self.broken.iter().filter_map(|b| b.file_name()).map(|i| i.to_string_lossy().into_owned()).collect()
+    }
+}
+
+pub struct ReNewServer(pub String);
+
+impl Handler<native_messages::InitServer<ReNewServer>> for Servers {
+    type Result = anyhow::Result<()>;
+
+    fn handle(&mut self, msg: native_messages::InitServer<ReNewServer>, ctx: &mut Self::Context) -> Self::Result {
+        let name = msg.ext.0.as_str();
+
+        let target = self.name_to_path(name);
+
+        let Some(at) = self.broken.iter().find(|b| b.as_ref() == &*target) else {
+            return Err(anyhow!("server not found"));
+        };
+
+        let at = Arc::clone(at);
+
+        let desc: model::InstanceDescriptor = model::InstanceDescriptor {
+            // server_jar: msg.server_jar,
+            name: name.to_owned(),
+            mods: msg.url,
+            max_memory: msg.max_memory,
+            memory: None,
+            ports: msg.ports,
+            java_args: msg.java_args,
+        };
+
+        let mut manifest = utils::open_manifest(&at)?;
+        desc.flush(&mut manifest)?;
+        drop(manifest);
+
+        let env = instance::InstanceEnv {
+            timeout: self.timeout,
+            servers: ctx.address(),
+            password: self.password.clone(),
+        };
+
+        match instance::Instance::load(Arc::clone(&at),env) {
+            Ok((instance,ports)) => {
+                self.broken.retain(|b| *b != *&at);
+                self.add_instance(at, instance, ports);
+                
+                Ok(())
+            },
+            Err(e) => Err(anyhow!("couldn't reload server: {:?}", e)),
+        }
+    }
+}
 
 impl Handler<native_messages::AddrOf<instance::Instance>> for Servers {
     type Result = Option<Addr<instance::Instance>>;
@@ -231,69 +302,55 @@ where
     }
 }
 
-impl Handler<native_messages::NewServer> for Servers {
+pub struct NewServer(pub String, pub UploadValue);
+
+impl Handler<native_messages::InitServer<NewServer>> for Servers {
     type Result = anyhow::Result<()>;
 
-    fn handle(&mut self, msg: native_messages::NewServer, ctx: &mut Self::Context) -> Self::Result {
-        let path = self.name_to_path(&msg.name);
+    fn handle(&mut self, msg: native_messages::InitServer<NewServer>, ctx: &mut Self::Context) -> Self::Result {
+        let name = msg.ext.0.as_str();
+
+        let path = self.name_to_path(name);
 
         if path.exists() && self.servers.contains_key((&*path).into()) {
             return Err(anyhow!("server name is already in use"));
         }
 
-        log::trace!("creating server: {:?}", &msg);
+        // log::trace!("creating server: {:?}", &msg);
 
-        match (
-            self.rcon_range.try_take(msg.rcon),
-            self.port_range.try_take(msg.port),
-        ) {
-            //rcon   port
-            (Ok(()), Ok(())) => {}
-            (Ok(()), Err(e)) => {
-                self.rcon_range.free(msg.rcon).unwrap(); // free rcon back
-                return Err(e);
-            }
-            (Err(e), Ok(())) => {
-                self.port_range.free(msg.port).unwrap(); // free port back
-                return Err(e);
-            }
-            (Err(_), Err(_)) => return Err(anyhow!("both rcon and port are bad")),
-        };
+        if !self.take_ports(&msg.ports) {
+            return Err(anyhow!("couldn't take ports"));
+        }
 
         log::info!("create server at {:?}", &*path);
 
         let desc: model::InstanceDescriptor = model::InstanceDescriptor {
             // server_jar: msg.server_jar,
-            name: msg.name,
+            name: name.to_owned(),
             mods: msg.url,
             max_memory: msg.max_memory,
             memory: None,
-            port: msg.port,
-            rcon: msg.rcon,
+            ports: msg.ports,
             java_args: msg.java_args,
         };
 
         let instance_place: Arc<Path> = path.into();
 
+        let iu = msg.ext.1;
+
         let instance = Instance::create(
             Arc::clone(&instance_place),
             desc,
             // msg.setup_cmd,
-            msg.instance_upload,
+            iu,
             instance::InstanceEnv { 
                 servers: ctx.address(),
                 timeout: self.timeout,
                 password: self.password.clone(),
             },
-        ).start();
+        );
 
-        self.servers.insert(instance_place, Server {
-            addr: instance,
-            ports: model::Ports {
-                port: msg.port,
-                rcon: msg.rcon,
-            }
-        });
+        self.add_instance(instance_place, instance, msg.ports);
 
         Ok(())
     }

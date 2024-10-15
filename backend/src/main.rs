@@ -26,7 +26,7 @@ struct IdParams {
 struct Page<C: Display,T: Display> {
     chunk: C,
     title: T,
-    content: serde_json::Value
+    page_props: serde_json::Value
 }
 
 #[route("/graphql", method = "GET", method = "HEAD", method = "POST")]
@@ -55,7 +55,7 @@ async fn index() -> impl Responder {
     Page {
         chunk: "index.js",
         title: "Servers",
-        content: serde_json::json!({})
+        page_props: serde_json::json!({})
     }
 }
 
@@ -64,7 +64,7 @@ async fn create() -> impl Responder {
     Page {
         chunk: "create.js",
         title: "Create server",
-        content: serde_json::json!({})
+        page_props: serde_json::json!({})
     }
 }
 
@@ -73,7 +73,7 @@ async fn command(info: web::Query<IdParams>) -> impl Responder {
     Page {
         chunk: "rcon.js",
         title: "RCON",
-        content: serde_json::json!({
+        page_props: serde_json::json!({
             "name": info.name
         })
     }
@@ -84,7 +84,18 @@ async fn alter(info: web::Query<IdParams>) -> impl Responder {
     Page {
         chunk: "alter.js",
         title: format!("Alter server {}",&info.name),
-        content: serde_json::json!({
+        page_props: serde_json::json!({
+            "name": info.name
+        })
+    }
+}
+
+#[get("/renew")]
+async fn renew(info: web::Query<IdParams>) -> impl Responder {
+    Page {
+        chunk: "renew.js",
+        title: format!("Renew server {}",&info.name),
+        page_props: serde_json::json!({
             "name": info.name
         })
     }
@@ -110,7 +121,7 @@ async fn main() -> std::io::Result<()> {
                     let error = Page {
                         title: res.status().as_str().to_owned(),
                         chunk: "error.js",
-                        content: serde_json::json!({
+                        page_props: serde_json::json!({
                             "msg": "Error has occured",
                             "color": "red",
                             "fontSize": "2em",
@@ -142,6 +153,7 @@ async fn main() -> std::io::Result<()> {
         .service(create)
         .service(alter)
         .service(command)
+        .service(renew)
     };
 
     simple_logger::SimpleLogger::new().env().init().unwrap();

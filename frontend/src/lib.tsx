@@ -40,6 +40,10 @@ const splitLink = split(
 const client = new ApolloClient({
   link: splitLink,
   cache: new InMemoryCache(),
+  connectToDevTools: true,
+  devtools: {
+    name: "main"
+  }
 });
 
 export type SSRProps<T = any> = {

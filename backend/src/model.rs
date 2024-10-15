@@ -1,4 +1,4 @@
-use std::{ffi::OsString, fs::File, io::{Seek, SeekFrom}, path::PathBuf};
+use std::{fs::File, io::{Seek, SeekFrom}};
 
 use async_graphql::SimpleObject;
 use serde::{Deserialize,Serialize};
@@ -6,17 +6,17 @@ use serde::{Deserialize,Serialize};
 #[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct InstanceDescriptor {
     pub name: String,
+
     pub mods: url::Url,
+    pub java_args: Vec<String>,
+    // pub server_jar: PathBuf,
+
     // in GB
     pub memory: Option<f64>,
     // in GB
     pub max_memory: f64,
-    pub port: u16,
 
-    // pub server_jar: PathBuf,
-
-    pub java_args: Vec<OsString>,
-    pub rcon: u16,
+    pub ports: Ports,
 }
 
 impl InstanceDescriptor {
@@ -31,7 +31,7 @@ impl InstanceDescriptor {
     }
 }
 
-#[derive(Clone, Deserialize, Serialize, Debug)]
+#[derive(Clone,Copy, Deserialize, Serialize, Debug, async_graphql::InputObject)]
 pub struct Ports {
     pub port: u16,
     pub rcon: u16

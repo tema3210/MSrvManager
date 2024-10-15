@@ -45,6 +45,8 @@ const Alter = ({pageData}: SSRProps<PageProps>) => {
 
     const instanceData = data?.instance ?? null;
 
+    console.log("instanceData",instanceData);
+
     const portLimits = ports?.portsTaken.portLimits ?? [1024,65535];
 
     const [alter,{ error: errorM }] = useMutation<{alterServer: boolean}>(gql`
@@ -81,15 +83,19 @@ const Alter = ({pageData}: SSRProps<PageProps>) => {
         }
     },[portLimits]);
 
-    const { 
-        register, 
+    const {
         handleSubmit,
         control,
         formState: { errors }
     } = useForm<FormData>({
         resolver: ajvResolver(schema as any, {
             formats: fullFormats
-        })
+        }),
+        defaultValues: {
+            maxMemory: {value: instanceData?.max_memory ?? 1, displayValue: ""},
+            port: {value: instanceData?.port ?? 1, displayValue: ""},
+            javaArgs: instanceData?.java_args?.join(" ") ?? ""
+        }
     });
 
     const onSubmit = async (fd: FormData) => {
@@ -122,10 +128,10 @@ const Alter = ({pageData}: SSRProps<PageProps>) => {
             {errorM && <ErrorP>{errorM.message}</ErrorP>}
 
             <Label>Paramaters for JVM, -Xmx, -Xms, classpath excluded</Label><br />
-            <TextArea name="javaArgs" control={control} placeholder="JVM params" /><br />
+            <TextArea name="javaArgs" control={control} placeholder={instanceData?.java_args?.join(" ") ?? ""} /><br />
             {errors.javaArgs && <ErrorP>{errors.javaArgs.message}</ErrorP>}
 
-            <Label>Max Memory, (1;32)</Label><br />
+            <Label>Max Memory, (1;8)</Label><br />
             <NumberInput type="float" name="maxMemory" control={control} placeholder={instanceData?.max_memory?.toString() ?? "-"} /><br />
             {errors.maxMemory && <ErrorP>{errors.maxMemory.message}</ErrorP>}
 

@@ -5,7 +5,14 @@ module.exports = {
   mode: "production",
   entry: {
     'shared': {
-      import: ['react','react-dom','@apollo/client','styled-components','react-hook-form']
+      import: [
+        'react',
+        'react-dom',
+        '@apollo/client',
+        'styled-components',
+        'react-hook-form',
+        './src/components/UIComps.tsx',
+      ]
     },
     index: {
       dependOn: 'shared',
@@ -26,6 +33,10 @@ module.exports = {
     rcon: {
       dependOn: 'shared',
       import: './src/Rcon.tsx',
+    },
+    renew: {
+      dependOn: 'shared',
+      import: './src/Renew.tsx',
     },
 
   },

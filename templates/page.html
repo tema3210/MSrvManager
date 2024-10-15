@@ -11,7 +11,7 @@
 {% block pageData %}
   <script>
     window.pageData = JSON.parse(
-      '{{ content|safe }}'
+      '{{ page_props|safe }}'
     );
   </script>
 {% endblock %}

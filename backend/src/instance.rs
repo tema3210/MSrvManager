@@ -7,7 +7,7 @@ use wait_timeout::ChildExt;
 
 use crate::*;
 
-use crate::messages::{instance_messages,native_messages};
+use crate::messages::instance_messages;
 
 use anyhow::anyhow;
 use std::process::Command;
@@ -15,10 +15,6 @@ use std::process::Command;
 pub struct InstanceData {
     pub desc: model::InstanceDescriptor,
     manifest: std::fs::File,
-}
-
-impl InstanceData {
-
 }
 
 pub enum InstanceState {
@@ -130,10 +126,7 @@ impl Instance {
         let mut manifest = utils::open_manifest(&*place).map_err(|e| LoadError::NoManifest(e))?;
         let desc: model::InstanceDescriptor = model::InstanceDescriptor::from_file(&mut manifest).map_err(|_| LoadError::BadManifest)?;
 
-        let ports = model::Ports {
-            port: desc.port,
-            rcon: desc.rcon
-        };
+        let ports = desc.ports;
 
         Ok((
             Self {
@@ -184,6 +177,8 @@ impl Actor for Instance {
                 };
 
                 data.desc.flush(&mut data.manifest).unwrap();
+
+                self.state = InstanceState::Stopped { data };
 
                 // if let Some(mut cmd) = setup_cmd {
                 //     let output = cmd.output().unwrap();
@@ -237,30 +232,32 @@ impl Instance {
 
         utils::patch_server_props(
             at.as_ref(),
-            desc.port,
-            desc.rcon,
+            desc.ports.port,
+            desc.ports.rcon,
             desc.max_memory as usize,
             &password
         )?;
 
         let mut cmd = Command::new("java");
 
-        let classpath = utils::generate_classpath(at.as_ref().join("libraries"))?;
+        let classpath = at.as_ref().join("libraries");
 
-        log::info!("classpath: {:?}", classpath);
+        let classpath = utils::generate_classpath(classpath)?;
 
         cmd.current_dir(
             at.as_ref()
                 // .join(desc.server_jar.parent().unwrap())
         )
             .arg(format!("-Xmx{}M", (desc.max_memory * 1024.0) as u64))
-            .args(["-cp".into(), classpath])
+            .args(["-DlegacyClassPath".into(), classpath])
             .args(desc.java_args.iter())
             // .arg("-jar")
             // .arg(desc.server_jar.as_os_str())
             .arg("--nogui")
             .stdin(std::process::Stdio::piped())
         ;
+
+        log::info!("starting process for: {:?}", &at);
 
         return Ok(InstanceState::Starting {
             child: cmd.spawn()?,
@@ -373,7 +370,7 @@ impl Handler<instance_messages::Kill> for Instance {
         let _ = child.kill();
         utils::dispose(child);
 
-        self.state = InstanceState::Stopped { data };
+        self.state = InstanceState::Crashed { data };
         Ok(())
     }
 }
@@ -430,11 +427,13 @@ impl Handler<instance_messages::SwitchServer> for Instance {
                 if msg.should_run {
                     let timeout = self.env.timeout;
 
-                    let rcon = data.desc.rcon.clone();
+                    let rcon = data.desc.ports.rcon;
 
                     let password = self.env.password.clone();
 
                     let this = ctx.address();
+
+                    log::info!("starting server {:?}", &self.place);
 
                     let next_state = Self::run(
                         Arc::clone(&self.place),
@@ -548,7 +547,7 @@ impl Handler<instance_messages::AlterServer> for Instance {
         };
 
         if let Some(port) = msg.port {
-            mfest.desc.port = port;
+            mfest.desc.ports.port = port;
         }
 
         if let Some(max_memory) = msg.max_memory {

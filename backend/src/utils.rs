@@ -91,25 +91,26 @@ pub fn open_manifest<P: AsRef<Path>>(at: P) -> Result<File, std::io::Error> {
 
 pub fn generate_classpath<P: AsRef<Path>>(at: P) -> anyhow::Result<OsString> {
 
-    let separator = if cfg!(target_os = "windows") { ";" } else { ":" };
+    let separator = ":";
 
     std::fs::read_dir(at.as_ref())?
         .filter_map(|e| e.ok())
         .try_fold(OsString::new(),|mut cp,e| {
 
+            let entry = e.path();
+
             // these we don't preload
-            if e.path().ends_with("net/minecraft") {
+            if entry.ends_with("net/minecraft") {
                 return Ok(cp)
             }
 
-            if e.path().is_dir() {
-                let icp = generate_classpath(at.as_ref())?;
+            if entry.is_dir() {
+                let icp = generate_classpath(entry)?;
                 cp.push(icp);
-                cp.push(separator);
                 return Ok(cp)
             }
 
-            if e.path().extension().map(|e| e == "jar").unwrap_or(false) {
+            if entry.extension().map(|e| e == "jar").unwrap_or(false) {
                 cp.push(&e.path());
                 cp.push(separator);
                 return Ok(cp)

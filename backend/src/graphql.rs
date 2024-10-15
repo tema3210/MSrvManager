@@ -1,5 +1,6 @@
 use std::collections::VecDeque;
 use std::pin::Pin;
+use std::vec;
 
 use async_graphql::{Schema, Subscription, Upload };
 
@@ -13,10 +14,18 @@ use crate::messages::{instance_messages, native_messages};
 
 pub struct Query;
 
+fn java_args_transform(args: String) -> Vec<String> {
+    args.split_whitespace()
+        .filter(|s| !s.starts_with("-Xms"))
+        .filter(|s| !s.starts_with("-Xmx"))
+        .map(|s| s.into())
+        .collect::<Vec<_>>()
+}
+
 #[Object]
 impl Query {
     async fn app_version(&self) -> &'static str {
-        "1.1"
+        "1.2"
     }
 
     async fn ports_taken<'cx>(&self, ctx: &Context<'cx>) -> anyhow::Result<model::PortsInfo> {
@@ -41,9 +50,7 @@ impl Query {
 pub struct Mutation;
 
 #[derive(async_graphql::InputObject)]
-pub struct NewServer {
-    name: String,
-
+pub struct ServerData {
     /// path to jar of server inside of upload
     // server_jar: String,
     java_args: String,
@@ -51,9 +58,7 @@ pub struct NewServer {
     // setup_cmd: Option<String>,
     url: url::Url,
     max_memory: f64,
-    port: u16,
-    rcon: u16,
-    instance_upload: Upload
+    ports: model::Ports,
 }
 
 #[Object]
@@ -83,7 +88,9 @@ impl Mutation {
     async fn new_server<'cx>(
         &self,
         ctx: &Context<'cx>,
-        data: NewServer,
+        name: String,
+        data: ServerData,
+        upload: Upload,
         password: String
     ) -> Result<bool,anyhow::Error> {
         let service = ctx.data_unchecked::<native::Service>();
@@ -112,28 +119,20 @@ impl Mutation {
         //     return Err(anyhow::anyhow!("server_jar must be a relative path"));
         // }
 
-        if data.name.is_empty() || data.name.contains('/') {
+        if name.is_empty() || name.contains('/') {
             return Err(anyhow::anyhow!("name must not be empty, or contain '/'"));
         }
 
-        let val = data.instance_upload.value(ctx)?;
-
-        let args = data.java_args.split_whitespace()
-            .filter(|s| !s.starts_with("-Xms"))
-            .filter(|s| !s.starts_with("-Xmx"))
-            .map(|s| s.into())
-            .collect::<Vec<_>>();
+        let val = upload.value(ctx)?;
         
-        service.send(native_messages::NewServer {
-            name: data.name,
+        service.send(native_messages::InitServer::<native::NewServer> {
             // server_jar,
             // setup_cmd: data.setup_cmd,
             url: data.url,
             max_memory: data.max_memory,
-            port: data.port,
-            rcon: data.rcon,
-            instance_upload: val,
-            java_args: args
+            ports: data.ports,
+            ext: native::NewServer(name,val),
+            java_args: java_args_transform(data.java_args)
         }).await??;
 
         Ok(true)
@@ -159,19 +158,11 @@ impl Mutation {
 
         let service = ctx.data_unchecked::<native::Service>();
 
-        let java_args = java_args.map(
-            |s| s.split_whitespace()
-                .filter(|s| s.starts_with('-'))
-                .filter(|s| !s.starts_with("-Xms"))
-                .map(|s| s.into())
-                .collect::<Vec<_>>()
-        );
-
         service.send(native_messages::AlterServer {
             name: name.clone(),
             msg: instance_messages::AlterServer {
                 max_memory,
-                java_args,
+                java_args: java_args.map(java_args_transform),
                 port
             }
         }).await??;
@@ -215,6 +206,29 @@ impl Mutation {
             cmd: message
         }).await??;
 
+        Ok(true)
+    }
+
+    async fn re_new_server<'cx>(&self,ctx: &Context<'cx>,name: String, data: ServerData, password: String) -> anyhow::Result<bool> {
+        let service = ctx.data_unchecked::<native::Service>();
+
+        let pass = ctx.data_unchecked::<Password>();
+
+        if pass.0 != password {
+            log::error!("wrong password: {}",password);
+            return Err(anyhow::anyhow!("wrong password"));
+        }
+
+        service.send(native_messages::InitServer {
+            // server_jar: data.server_jar,
+            java_args: java_args_transform(data.java_args),
+            // setup_cmd: data.setup_cmd,
+            url: data.url,
+            max_memory: data.max_memory,
+            ports: data.ports,
+            ext: native::ReNewServer(name)
+
+        }).await??;
         Ok(true)
     }
 }
@@ -357,6 +371,23 @@ impl Subscription {
             .boxed();
 
         Ok(stream)
+    }
+
+    async fn broken_servers<'cx>(&self, ctx: &Context<'cx>) -> impl Stream<Item = Vec<String>> + 'cx {
+        let service = ctx.data_unchecked::<native::Service>();
+
+        tokio_stream::wrappers::IntervalStream::new({
+            let mut i = tokio::time::interval(Duration::from_secs(3) + Duration::from_millis(500));
+            i.set_missed_tick_behavior(MissedTickBehavior::Skip);
+            i
+        })
+        .then(move |_| service.send(native_messages::Broken))
+        .map(|data| {
+            match data {
+                Ok(v) => v,
+                Err(_) => vec![],
+            }
+        })
     }
 }
 

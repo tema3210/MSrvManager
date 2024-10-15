@@ -7,7 +7,7 @@ import Btn from "./components/Button";
 
 import { gql, useSubscription, useQuery } from "@apollo/client";
 import styled from "styled-components";
-import { InstanceStateDisplay, TextBig } from "./components/UIComps";
+import { BrokenServerLink, InstanceStateDisplay, TextBig, TextSmall } from "./components/UIComps";
 import Spinner from "./components/Spinner";
 
 const Wrapper = styled.div`
@@ -49,6 +49,14 @@ const Index = ({}: SSRProps) => {
         }
     `);
 
+    const { data: brokens } = useSubscription<{ brokenServers: string[] }>(gql`
+        subscription {
+            brokenServers
+        }
+    `);
+
+    console.log("brokenServers",brokens);
+
     const [selected,setSelected] = useState<string | null>(null);
 
     if (loading) return <Spinner />;
@@ -60,7 +68,14 @@ const Index = ({}: SSRProps) => {
     
     return <Wrapper>
         <InstanceWrapper width="75%">
-            <TextBig>MSRVMANAGER: {(AVloading)? "-" : AVdata.appVersion }; We have these servers:</TextBig>
+            <TextBig>MSRVMANAGER: {(AVloading)? "-" : AVdata.appVersion }; We have these servers:</TextBig><br />
+            <>
+                {
+                    (brokens)
+                        ? <TextSmall>Broken servers: {brokens?.brokenServers.map((val) => (<BrokenServerLink href={`/renew?name=${val}`}>{val}</BrokenServerLink>))}</TextSmall>
+                        : null
+                }
+            </>
             <ListWrapper>
                 {
                     Object.entries((data?.servers ?? {}))

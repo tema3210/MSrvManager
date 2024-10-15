@@ -9,6 +9,25 @@ export const TextBig = styled.span`
     /* width: calc(100% - 2rem); */
 `;
 
+
+export const TextSmall = styled.span`
+    font-size: 1.2rem;
+    color: black;
+    /* margin-left: 2rem; */
+    /* width: calc(100% - 2rem); */
+`;
+
+export const BrokenServerLink = styled.a`
+    text-decoration: none;
+    color: #000000;
+
+    margin-right: 1rem;
+
+    &:hover {
+        text-decoration: underline;
+    }
+`;
+
 export const HomeLink = styled.a`
     text-decoration: none;
     color: #db9f30;
