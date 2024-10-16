@@ -55,8 +55,6 @@ const Index = ({}: SSRProps) => {
         }
     `);
 
-    console.log("brokenServers",brokens);
-
     const [selected,setSelected] = useState<string | null>(null);
 
     if (loading) return <Spinner />;
