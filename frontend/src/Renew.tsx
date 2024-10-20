@@ -112,7 +112,7 @@ const ReNewPage = ({ pageData }: SSRProps<PageProps>) => {
           }
         };
 
-        let password = prompt("Please enter the password to create the server");
+        let password = prompt("Please enter the password to renew the server");
 
         if (!password) {
           return;

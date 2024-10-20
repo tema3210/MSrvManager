@@ -23,7 +23,12 @@ struct IdParams {
 
 #[derive(askama::Template)]
 #[template(path = "page.html")]
-struct Page<C: Display,T: Display> {
+struct Page<'p, C: Display, T: Display, D> 
+    where D: Clone + IntoIterator<Item = &'p str> + 'p
+{
+    /// pathes to optional js chunks
+    deps: D,
+    /// path to main js chunk
     chunk: C,
     title: T,
     page_props: serde_json::Value
@@ -53,6 +58,7 @@ async fn graphql_ws(
 #[get("/")]
 async fn index() -> impl Responder {
     Page {
+        deps: [],
         chunk: "index.js",
         title: "Servers",
         page_props: serde_json::json!({})
@@ -62,6 +68,7 @@ async fn index() -> impl Responder {
 #[get("/create")]
 async fn create() -> impl Responder {
     Page {
+        deps: ["validate.js"],
         chunk: "create.js",
         title: "Create server",
         page_props: serde_json::json!({})
@@ -71,6 +78,7 @@ async fn create() -> impl Responder {
 #[get("/rcon")]
 async fn command(info: web::Query<IdParams>) -> impl Responder {
     Page {
+        deps: [],
         chunk: "rcon.js",
         title: "RCON",
         page_props: serde_json::json!({
@@ -82,6 +90,7 @@ async fn command(info: web::Query<IdParams>) -> impl Responder {
 #[get("/alter")]
 async fn alter(info: web::Query<IdParams>) -> impl Responder {
     Page {
+        deps: ["validate.js"],
         chunk: "alter.js",
         title: format!("Alter server {}",&info.name),
         page_props: serde_json::json!({
@@ -93,6 +102,7 @@ async fn alter(info: web::Query<IdParams>) -> impl Responder {
 #[get("/renew")]
 async fn renew(info: web::Query<IdParams>) -> impl Responder {
     Page {
+        deps: vec!["validate.js"],
         chunk: "renew.js",
         title: format!("Renew server {}",&info.name),
         page_props: serde_json::json!({
@@ -120,6 +130,7 @@ async fn main() -> std::io::Result<()> {
                     
                     let error = Page {
                         title: res.status().as_str().to_owned(),
+                        deps: [],
                         chunk: "error.js",
                         page_props: serde_json::json!({
                             "msg": "Error has occured",

@@ -6,6 +6,11 @@
   <title>{% block title %}{% endblock %}</title>
   <link rel="icon" type="image/x-icon" href="/static/favicon.ico" />
   <script src="/static/shared.js"></script>
+
+  {% for d in deps.clone() %}
+    <script src="/static/{{ d }}"></script>
+  {% endfor %}
+
   {% block pageData %}{% endblock %}
 </head>
 <body style="display: block;">

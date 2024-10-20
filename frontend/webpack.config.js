@@ -4,6 +4,13 @@ const path = require('path');
 module.exports = {
   mode: "production",
   entry: {
+    'validate': {
+      import: [
+        'ajv',
+        'ajv-formats',
+      ],
+      dependOn: 'shared',
+    },
     'shared': {
       import: [
         'react',
@@ -11,6 +18,7 @@ module.exports = {
         '@apollo/client',
         'styled-components',
         'react-hook-form',
+        "@hookform/resolvers",
         './src/components/UIComps.tsx',
       ]
     },
@@ -19,11 +27,11 @@ module.exports = {
       import: './src/Index.tsx',
     },
     create: {
-      dependOn: 'shared',
+      dependOn: ['shared', 'validate'],
       import: './src/Create.tsx',
     },
     alter: {
-      dependOn: 'shared',
+      dependOn: ['shared', 'validate'],
       import: './src/Alter.tsx',
     },
     error: {
@@ -35,7 +43,7 @@ module.exports = {
       import: './src/Rcon.tsx',
     },
     renew: {
-      dependOn: 'shared',
+      dependOn: ['shared', 'validate'],
       import: './src/Renew.tsx',
     },
 
