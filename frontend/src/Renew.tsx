@@ -34,13 +34,14 @@ type FormData = Omit<ServerData, SpecialHandling> & {
     instanceUpload: {value: FileList, formData: File[]} | null
 };
 
-
 type PageProps = {
-  name: string
+  name: string,
+  data: any
 }
 
-
 const ReNewPage = ({ pageData }: SSRProps<PageProps>) => {
+
+    console.log("PageData:",pageData);
 
     const { data: ports, loading: pLoading } = useQuery<{portsTaken: PortLimits}>(gql`
         {

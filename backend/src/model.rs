@@ -19,6 +19,12 @@ pub struct InstanceDescriptor {
     pub ports: Ports,
 }
 
+#[derive(Debug)]
+pub enum IDError {
+    JSON(serde_json::Value),
+    IO(serde_json::Error)
+}
+
 impl InstanceDescriptor {
     pub fn flush(&self,file: &mut File) -> anyhow::Result<()> {
         file.seek(SeekFrom::Start(0))?;
@@ -26,8 +32,13 @@ impl InstanceDescriptor {
         Ok(serde_json::to_writer(file, self)?)
     }
 
-    pub fn from_file(file: &mut File) -> anyhow::Result<Self> {
-        Ok(serde_json::from_reader(file)?)
+    pub fn from_file(file: &mut File) -> Result<Self,IDError> {
+        if let Ok(id) = serde_json::from_reader::<_,Self>(&mut *file) {
+            return Ok(id)
+        };
+        let val: serde_json::Value = serde_json::from_reader(file)
+            .map_err(|e| IDError::IO(e))?;
+        Err(IDError::JSON(val))
     }
 }
 

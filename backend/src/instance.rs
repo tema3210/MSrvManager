@@ -94,7 +94,7 @@ impl Instance {
 pub enum LoadError {
     PathIsNotDir,
     NoManifest(std::io::Error),
-    BadManifest
+    BadManifest(model::IDError)
 }
 
 //ctors
@@ -124,7 +124,7 @@ impl Instance {
         }
 
         let mut manifest = utils::open_manifest(&*place).map_err(|e| LoadError::NoManifest(e))?;
-        let desc: model::InstanceDescriptor = model::InstanceDescriptor::from_file(&mut manifest).map_err(|_| LoadError::BadManifest)?;
+        let desc: model::InstanceDescriptor = model::InstanceDescriptor::from_file(&mut manifest).map_err(|e| LoadError::BadManifest(e))?;
 
         let ports = desc.ports;
 

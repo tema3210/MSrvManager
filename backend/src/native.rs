@@ -22,6 +22,12 @@ pub struct Server {
     ports: model::Ports,
 }
 
+#[derive(Clone,Debug)]
+pub struct BrokenServer {
+    at: Arc<Path>,
+    had: Option<serde_json::Value>
+}
+
 pub struct Servers {
     servers_dir: PathBuf,
     rcon_range: Indices,
@@ -31,7 +37,7 @@ pub struct Servers {
 
     servers: HashMap<std::sync::Arc<Path>, Server>,
 
-    broken: Vec<std::sync::Arc<Path>>,
+    broken: Vec<BrokenServer>,
 }
 
 impl Actor for Servers {
@@ -73,9 +79,15 @@ impl Actor for Servers {
                             log::error!("couldn't load server at {:?} due to: {:?} - nuking", &arc_path, e);
                             let _ = std::fs::remove_dir_all(arc_path.as_ref());
                         },
-                        instance::LoadError::BadManifest => {
+                        instance::LoadError::BadManifest(ide) => {
                             log::error!("couldn't load server at {:?} due to bad manifest - broken", &arc_path);
-                            self.broken.push(arc_path);
+
+                            let had = match ide {
+                                model::IDError::IO(_) => None,
+                                model::IDError::JSON(e) => Some(e),
+                            };
+
+                            self.broken.push(BrokenServer { at: arc_path, had });
                         },
                     };
                 }
@@ -188,7 +200,7 @@ impl Handler<native_messages::Broken> for Servers {
     type Result = Vec<String>;
 
     fn handle(&mut self, _: native_messages::Broken, _: &mut Self::Context) -> Self::Result {
-        self.broken.iter().filter_map(|b| b.file_name()).map(|i| i.to_string_lossy().into_owned()).collect()
+        self.broken.iter().filter_map(|b| b.at.file_name()).map(|i| i.to_string_lossy().into_owned()).collect()
     }
 }
 
@@ -202,11 +214,11 @@ impl Handler<native_messages::InitServer<ReNewServer>> for Servers {
 
         let target = self.name_to_path(name);
 
-        let Some(at) = self.broken.iter().find(|b| b.as_ref() == &*target) else {
+        let Some(bs) = self.broken.iter().find(|b| b.at.as_ref() == &*target) else {
             return Err(anyhow!("server not found"));
         };
 
-        let at = Arc::clone(at);
+        let at = Arc::clone(&bs.at);
 
         let desc: model::InstanceDescriptor = model::InstanceDescriptor {
             // server_jar: msg.server_jar,
@@ -230,7 +242,7 @@ impl Handler<native_messages::InitServer<ReNewServer>> for Servers {
 
         match instance::Instance::load(Arc::clone(&at),env) {
             Ok((instance,ports)) => {
-                self.broken.retain(|b| *b != *&at);
+                self.broken.retain(|b| *&(b.at) != *&at);
                 self.add_instance(at, instance, ports);
                 
                 Ok(())
@@ -418,5 +430,17 @@ impl Handler<native_messages::Nuke> for Servers {
 
     fn handle(&mut self, msg: native_messages::Nuke, _: &mut Self::Context) -> Self::Result {
         self.nuke(msg.who)
+    }
+}
+
+impl Handler<native_messages::DataOfBroken> for Servers {
+    type Result = Option<serde_json::Value>;
+
+    fn handle(&mut self, msg: native_messages::DataOfBroken, _: &mut Self::Context) -> Self::Result {
+        let at = self.name_to_path(msg.name);
+        let Some(bs) = self.broken.iter().find(|b| &*b.at == &*at) else {
+            return None;
+        };
+        bs.had.clone()
     }
 }

@@ -1,12 +1,13 @@
 #![recursion_limit = "1024"]
 use std::{fmt::Display, path::PathBuf, sync::Arc, time::Duration};
 
-use actix::Actor;
+use actix::{Actor, Addr};
 
 use actix_web::{get, guard, middleware::{self, ErrorHandlerResponse, ErrorHandlers}, route, web::{self, Data}, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use askama::Template;
 use async_graphql_actix_web::{GraphQLRequest, GraphQLResponse, GraphQLSubscription};
 use actix_cors::Cors;
+use native::Servers;
 
 pub mod graphql;
 pub mod native;
@@ -100,13 +101,18 @@ async fn alter(info: web::Query<IdParams>) -> impl Responder {
 }
 
 #[get("/renew")]
-async fn renew(info: web::Query<IdParams>) -> impl Responder {
+async fn renew(info: web::Query<IdParams>, native: web::Data<Addr<Servers>>) -> impl Responder {
+    let data = native.send(messages::native_messages::DataOfBroken {
+        name: info.name.clone()
+    }).await.unwrap_or(None);
+
     Page {
         deps: vec!["validate.js"],
         chunk: "renew.js",
         title: format!("Renew server {}",&info.name),
         page_props: serde_json::json!({
-            "name": info.name
+            "name": info.name,
+            "data": data
         })
     }
 }
@@ -223,13 +229,13 @@ async fn main() -> std::io::Result<()> {
 
     let native = native::Servers::new(srvrs_dir,rcons,ports,timeout,password.clone()).start();
 
-    let native_clone = native.clone();
+    let native_timer = native.clone();
     
     std::thread::spawn(move || {
         let interval = std::time::Duration::from_secs(4) + std::time::Duration::from_millis(500);
         loop {
             std::thread::sleep(interval);
-            native_clone.do_send(messages::Tick);
+            native_timer.do_send(messages::Tick);
         }
     });
 
@@ -237,10 +243,14 @@ async fn main() -> std::io::Result<()> {
 
     log::info!("starting HTTP server on port {port} in {mode:?} mode");
 
+    let data_native = native.clone();
+
     let server = HttpServer::new({
+        
         move || {
             let app = App::new()
                 .app_data(Data::from(schema.clone()))
+                .app_data(Data::new(data_native.clone()))
                 .service(
                     web::scope("/static")
                         .wrap({
@@ -269,7 +279,7 @@ async fn main() -> std::io::Result<()> {
     .bind((addr, port))?
     .run();
 
-    let native_clone = native.clone();
+    let native_halt = native.clone();
 
     let server_handle = server.handle();
 
@@ -277,7 +287,7 @@ async fn main() -> std::io::Result<()> {
         tokio::signal::ctrl_c().await.expect("Failed to listen for ctrl_c");
         log::info!("Received ctrl-c, stopping servers...");
 
-        native_clone.send(messages::native_messages::Stop).await.expect("Failed to stop servers");
+        native_halt.send(messages::native_messages::Stop).await.expect("Failed to stop servers");
 
         server_handle.stop(true).await;
     });

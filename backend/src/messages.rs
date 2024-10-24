@@ -93,7 +93,11 @@ pub mod native_messages {
     #[rtype(result = "Vec<String>")]
     pub struct Broken;
 
-
+    #[derive(Message,Debug)]
+    #[rtype(result = "Option<serde_json::Value>")]
+    pub struct DataOfBroken {
+        pub name: String
+    }
 }
 
 /// instance actor messages
