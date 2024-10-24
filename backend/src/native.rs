@@ -196,10 +196,10 @@ impl Servers {
 
 pub type Service = actix::Addr<Servers>;
 
-impl Handler<native_messages::Broken> for Servers {
+impl Handler<native_messages::ListBroken> for Servers {
     type Result = Vec<String>;
 
-    fn handle(&mut self, _: native_messages::Broken, _: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, _: native_messages::ListBroken, _: &mut Self::Context) -> Self::Result {
         self.broken.iter().filter_map(|b| b.at.file_name()).map(|i| i.to_string_lossy().into_owned()).collect()
     }
 }
@@ -438,9 +438,11 @@ impl Handler<native_messages::DataOfBroken> for Servers {
 
     fn handle(&mut self, msg: native_messages::DataOfBroken, _: &mut Self::Context) -> Self::Result {
         let at = self.name_to_path(msg.name);
+        log::info!("getting data of broken server: {:?}", &at);
         let Some(bs) = self.broken.iter().find(|b| &*b.at == &*at) else {
             return None;
         };
+        log::info!("found broken server: {:?}", &bs);
         bs.had.clone()
     }
 }

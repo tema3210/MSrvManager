@@ -381,7 +381,7 @@ impl Subscription {
             i.set_missed_tick_behavior(MissedTickBehavior::Skip);
             i
         })
-        .then(move |_| service.send(native_messages::Broken))
+        .then(move |_| service.send(native_messages::ListBroken))
         .map(|data| {
             match data {
                 Ok(v) => v,

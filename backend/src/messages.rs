@@ -91,7 +91,7 @@ pub mod native_messages {
 
     #[derive(Message,Debug)]
     #[rtype(result = "Vec<String>")]
-    pub struct Broken;
+    pub struct ListBroken;
 
     #[derive(Message,Debug)]
     #[rtype(result = "Option<serde_json::Value>")]

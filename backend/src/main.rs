@@ -27,7 +27,7 @@ struct IdParams {
 struct Page<'p, C: Display, T: Display, D> 
     where D: Clone + IntoIterator<Item = &'p str> + 'p
 {
-    /// pathes to optional js chunks
+    /// pathes to dep js chunks, order matters
     deps: D,
     /// path to main js chunk
     chunk: C,
@@ -59,7 +59,7 @@ async fn graphql_ws(
 #[get("/")]
 async fn index() -> impl Responder {
     Page {
-        deps: [],
+        deps: ["shared.js"],
         chunk: "index.js",
         title: "Servers",
         page_props: serde_json::json!({})
@@ -69,7 +69,7 @@ async fn index() -> impl Responder {
 #[get("/create")]
 async fn create() -> impl Responder {
     Page {
-        deps: ["validate.js"],
+        deps: ["shared.js","validate.js"],
         chunk: "create.js",
         title: "Create server",
         page_props: serde_json::json!({})
@@ -79,7 +79,7 @@ async fn create() -> impl Responder {
 #[get("/rcon")]
 async fn command(info: web::Query<IdParams>) -> impl Responder {
     Page {
-        deps: [],
+        deps: ["shared.js"],
         chunk: "rcon.js",
         title: "RCON",
         page_props: serde_json::json!({
@@ -91,7 +91,7 @@ async fn command(info: web::Query<IdParams>) -> impl Responder {
 #[get("/alter")]
 async fn alter(info: web::Query<IdParams>) -> impl Responder {
     Page {
-        deps: ["validate.js"],
+        deps: ["shared.js","validate.js"],
         chunk: "alter.js",
         title: format!("Alter server {}",&info.name),
         page_props: serde_json::json!({
@@ -107,7 +107,7 @@ async fn renew(info: web::Query<IdParams>, native: web::Data<Addr<Servers>>) -> 
     }).await.unwrap_or(None);
 
     Page {
-        deps: vec!["validate.js"],
+        deps: ["shared.js","validate.js"],
         chunk: "renew.js",
         title: format!("Renew server {}",&info.name),
         page_props: serde_json::json!({
