@@ -52,6 +52,11 @@ module.exports = {
     path: path.resolve(__dirname, '../static'),
     filename: '[name].js',
   },
+  watchOptions: {
+    aggregateTimeout: 350, // Delay the rebuild after the first change (in ms)
+    ignored: /node_modules/, // Ignore files in `node_modules`
+    // poll: 1000, // Use polling instead of filesystem events (useful for network filesystems)
+  },
   module: {
     rules: [
       {
@@ -76,4 +81,5 @@ module.exports = {
   resolve: {
     extensions: ['.js', '.jsx','.ts','.tsx'],
   },
+  
 };

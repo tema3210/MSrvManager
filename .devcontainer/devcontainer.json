@@ -1,0 +1,60 @@
+{
+    "name": "My Dev Container",
+    "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+    "features": {
+        "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {},
+        "ghcr.io/devcontainers/features/node:1": {
+            "version": "18"
+        },
+        "ghcr.io/devcontainers/features/rust:1": {
+            "version": "1.82",
+            "targets": [
+                "x86_64-unknown-linux-musl"
+            ]
+        }
+    },
+    "runArgs": ["--network=host"],
+    "containerEnv": {
+        "DOCKER_HOST": "${localEnv:HOME_SERVER_SSH_URL}"
+    },
+    "mounts": [
+        {
+            "source": "pnpm_store",
+            "target": "/home/vscode/.pnpm-store",
+            "type": "volume"
+        },
+        {
+            "source": "cargo_install_volume",
+            "target": "/home/vscode/.cargo/target",
+            "type": "volume"
+        },
+        {
+            "source": "${localEnv:HOME}/.ssh",
+            "target": "/home/vscode/.ssh",
+            "type": "bind"
+        },
+        {
+            "source": "${localEnv:HOME}/.cargo/registry",
+            "target": "/home/vscode/.cargo/registry",
+            "type": "bind"
+        }
+    ],
+    "customizations": {
+     "vscode": {
+      "extensions": [
+        "vadimcn.vscode-lldb",
+        "tamasfe.even-better-toml",
+        "GraphQL.vscode-graphql-syntax",
+        "rust-lang.rust-analyzer",
+        "GitHub.copilot-chat",
+        "formulahendry.auto-rename-tag",
+        "anseki.vscode-color",
+        "GitHub.copilot",
+        "GraphQL.vscode-graphql",
+        "styled-components.vscode-styled-components"
+      ]
+     }
+    },
+    "onCreateCommand": ".devcontainer/setup.sh",
+    "updateContentCommand": ".devcontainer/build.sh"
+   }

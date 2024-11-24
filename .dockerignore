@@ -1,3 +1,5 @@
-backend/*
-frontend/*
-templates/*
+*
+!static/
+!msrvmanager
+!.env
+!patch_server_props.sh

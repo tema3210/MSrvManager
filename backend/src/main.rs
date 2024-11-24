@@ -227,6 +227,9 @@ async fn main() -> std::io::Result<()> {
         _ => panic!("bad mode format")
     };
 
+    let static_srv_dir = std::env::var("STATIC_DIR")
+        .unwrap_or("./static".to_owned());
+
     let native = native::Servers::new(srvrs_dir,rcons,ports,timeout,password.clone()).start();
 
     let native_timer = native.clone();
@@ -264,7 +267,7 @@ async fn main() -> std::io::Result<()> {
                             }
                         })
                         .service(
-                            actix_files::Files::new("/", "./static")
+                            actix_files::Files::new("/", static_srv_dir.as_str())
                                 .prefer_utf8(true)
                         )
                 );
