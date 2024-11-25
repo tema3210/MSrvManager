@@ -13,7 +13,7 @@ import createUploadLink from 'apollo-upload-client/createUploadLink.mjs';
 
 // WebSocket link for subscriptions
 const wsLink = new WebSocketLink({
-  uri: `ws://${location.hostname}/graphql_ws`,
+  uri: `ws://${location.host}/graphql_ws`,
   options: {
     reconnect: true,
   },
