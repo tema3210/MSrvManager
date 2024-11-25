@@ -1,10 +1,11 @@
 #!/bin/bash
-sudo apt update && sudo apt install -y musl-tools
+sudo apt update && sudo apt install -y musl-tools mold
 
 export PNPM_HOME=$HOME/.pnpm-global
 export PNPM_STORE=$HOME/.pnpm-store
 export PATH="$HOME/.pnpm-global/bin:$PATH"
 export CARGO_TARGET_DIR=$HOME/.cargo/target
+export RUSTFLAGS="-C link-arg=-fuse-ld=mold"
 
 # Create necessary directories if they do not exist
 mkdir -p $CARGO_TARGET_DIR
